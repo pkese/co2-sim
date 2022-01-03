@@ -6,7 +6,8 @@
         "start": "dotnet fable watch src/client.fsproj -o build/client --runFast vite --open",
         "test": "dotnet fable test -o build/test --run web-test-runner build/test/*Test.js --node-resolve",
         "test:watch": "dotnet fable watch test -o build/test --run web-test-runner build/test/*Test.js --node-resolve --watch",
-        "publish": "npm test && npm run build -- --base=/web/ && npx gh-pages -d dist"
+        "publish000": "npm test && npm run build -- --base=/web/ && npx gh-pages -d dist",
+        "publish": "npm run build -- --base=/co2-sim/ && npx gh-pages -d dist"
     },
     "dependencies": {
         "@lit-labs/motion": "^1.0.0",
