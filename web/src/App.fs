@@ -30,11 +30,15 @@ let MyApp() =
             Lit.ofImport(EnergyApp.register, fun _ ->
                 html $"""<energy-app local-storage="energy-app"></energy-app>""")
 
-    html $"""
+    (*html $"""
         <div class="tabs" style="margin-bottom: 0.5rem;">
           <ul>
-            {renderTab Tab.Energy "Energy"}
+            {renderTab Tab.Energy "Simulacija"}
           </ul>
         </div>
         {content}
+    """
+    *)
+    html $"""
+        <energy-app/>
     """

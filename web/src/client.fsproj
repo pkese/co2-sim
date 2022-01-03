@@ -7,6 +7,7 @@
     <Compile Include="EnergyData.fs" />
     <Compile Include="EnergySim.fs" />
     <Compile Include="EnergyForm.fs" />
+    <Compile Include="EnergyChart.fs" />
     <Compile Include="EnergyApp.fs" />
     <Compile Include="App.fs" />
   </ItemGroup>

@@ -39,9 +39,9 @@ module Simulate =
             let sourcable = min level (amountNeeded/efficiency)
             level <- level - sourcable
             batLevels[i] <- level
-            let sourcable' = sourcable * efficiency
-            batSource[i] <- sourcable'
-            amountNeeded - sourcable'
+            let sourced = sourcable * efficiency
+            batSource[i] <- sourced
+            amountNeeded - sourced
         source, sink
 
     let fossil (current: float32[]) (projected: float32[]) =

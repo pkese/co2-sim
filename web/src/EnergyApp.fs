@@ -9,6 +9,7 @@ let private hmr = HMR.createToken()
 
 let register() =
     Energy.Form.register()
+    Energy.Chart.register()
     ()
 
 
@@ -151,9 +152,9 @@ let renderCostList (ys:YearStats) (ys':YearStats) =
         getDelta pre post
         
     let priceOf = function
-        | Solar -> 770f
-        | Wind -> 1100f
-        | Battery -> 150f
+        | Solar -> 790f // https://www.utilitydive.com/news/us-utility-scale-solar-storage-prices-drop-12-in-past-year-but-supply-c/610825/
+        | Wind -> 1500f // https://www.windustry.org/how_much_do_wind_turbines_cost
+        | Battery -> 340f // https://en.wikipedia.org/wiki/Hornsdale_Power_Reserve#Expansion
         | other -> failwithf $"missing cost of {other}"
         
 
@@ -203,13 +204,12 @@ let renderCostList (ys:YearStats) (ys':YearStats) =
 let EnergySimulationApp() =
     Hook.useHmr(hmr)
     let _ = LitElement.init(fun cfg ->
+        cfg.useShadowDom <- false
         cfg.styles <- [
             css $"""
             :host {{
                 display: block;
-                height: 100%%;
-            }}
-            .energy-sim {{
+                //height: 100%%;
                 padding: 2em;
             }}
             .energy-table {{
@@ -230,6 +230,32 @@ let EnergySimulationApp() =
             """
         ]
     )
+
+    let clasName = Hook.use_scoped_css <| $"""
+        :host {{
+            display: block;
+            height: 100%%;
+            margin: auto;
+        }}
+        :host.energy-sim {{
+            padding: 2em;
+        }}
+        .energy-table {{
+            border: 1px solid black;
+            border-collapse: collapse;
+            td {{ textAlgn: right }}
+            text-align:right;
+        }}
+        .energy-table td, .energy-table th {{
+            border: 1px solid black;
+            padding: 0.25em 0.5em 0.25em 0.5em;
+            text-align:right;
+            //color: red;
+        }}
+        .energy-table th {{
+            text-align: center;
+        }}
+    """
 
     let simConfig, setSimConfig = Hook.useState(Energy.Sim.SimConfig.initial)
     let yearStats, setTraces = Hook.useState([])
@@ -280,9 +306,9 @@ let EnergySimulationApp() =
     let year = yearStats |> List.tryHead |> Option.map (fun ys -> ys.year)
 
     html $"""
-        <div class="energy-sim">
+        <div class="energy-sim {clasName}">
         <h2>Energijska simulacija</h2>
-        <span>Simulacija elektroenergetskega sistema na realnih podatkih donosa sonca in vetra za leto {year}<br>ob predpostaviki povečanih kapacitet vetrnih in solarnih elektrarn ter baterijskega shranjavanja energije.<span>
+        <p>Simulacija elektroenergetskega sistema na realnih urnih podatkih donosa sonca in vetra za leto {year}<br>ob predpostaviki povečanih kapacitet vetrnih in solarnih elektrarn ter baterijskega shranjavanja energije.</p>
         <div class="energy-result">
             <table class="energy-table">
                 <thead>
@@ -306,6 +332,11 @@ let EnergySimulationApp() =
                 match yearStats with
                 | [ys;ys'] -> renderCostList ys ys'
                 | _ -> Lit.nothing
+            }
+            { match yearStats with
+               | [] -> Lit.nothing
+               | ys::ys'::_ -> Energy.Chart.EnergyChart simConfig ys ys'
+               | ys::[] -> Lit.nothing
             }
         </div>
         </div>
