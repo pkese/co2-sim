@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Util.fs" />
+    <Compile Include="EnergyData.fs" />
+    <Compile Include="EnergySim.fs" />
+    <Compile Include="EnergyApp.fs" />
+    <Compile Include="App.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Fable.Lit" Version="1.4.1" />
+    <PackageReference Include="Fable.Lit.Elmish" Version="1.4.0" />
+    <PackageReference Include="Thoth.Json" Version="6.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\shared\shared.fsproj" />
+  </ItemGroup>
+</Project>
