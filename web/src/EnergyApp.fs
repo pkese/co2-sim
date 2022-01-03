@@ -7,7 +7,9 @@ open Shared.Types
 
 let private hmr = HMR.createToken()
 
-let register() = ()
+let register() =
+    Energy.Form.register()
+    ()
 
 
 //[<LitElement("trace-table-row")>]
@@ -59,9 +61,9 @@ let getYsYearName (ys: YearStats) =
 let renderTraceHeader() = html $"""
     <tr>
         <th></th>
-        <th colspan={installedColumns.Length}>Inštalirana moč [MW]</th>
+        <th colspan={installedColumns.Length}>Inštalirana moč [MW,MWh]</th>
         <th colspan={dataColumns.Length}>Proizvodnja [GWh]</th>
-        <th>Izpusti [T]</th>
+        <th>Izpusti [MT]</th>
     </tr>
     <tr>
         <th>Leto</th>
@@ -76,7 +78,7 @@ let renderTraceHeader() = html $"""
 let getTonsCO2 (ys:YearStats) =
     let coal = ys[Coal].total * 448.32f
     let gas = ys[Gas].total * 988.83f
-    (coal+gas)/1000f
+    (coal+gas)/1000000f
 
 let renderTraceRow(ys:YearStats) = 
 
@@ -97,7 +99,7 @@ let renderTraceRow(ys:YearStats) =
                 |> Lit.mapUnique (fun col -> $"{col}") (fun col -> html $"<td>{renderCapacityCell col}</td>")}
             { dataColumns
                 |> Lit.mapUnique (fun col -> $"{col}") (fun col -> html $"<td>{renderPowerCell col}</td>")}
-            <td>{Lit.ofText <| sprintf "%.0f" (getTonsCO2 ys)}</td>
+            <td>{Lit.ofText <| sprintf "%.1f" (getTonsCO2 ys)}</td>
         </tr>
     """
 
@@ -229,9 +231,10 @@ let EnergySimulationApp() =
         ]
     )
 
-    let traces, setTraces = Hook.useState([])
+    let simConfig, setSimConfig = Hook.useState(Energy.Sim.SimConfig.initial)
+    let yearStats, setTraces = Hook.useState([])
     Hook.useEffectOnce(fun () ->
-        let year = 2019
+        let year = 2020
         fetchJson<Energy.Data.JsonTrace []>($"energy-traces-{year}.json")
         |> Promise.iter (fun data ->
             let yearStats = 
@@ -245,6 +248,15 @@ let EnergySimulationApp() =
             ]
         )
     )
+    let onSimConfigChanged (sc: Energy.Sim.SimConfig) =
+        if sc <> simConfig then
+            setSimConfig(sc)
+            match yearStats with
+            | ys::_ ->
+                printfn "running simulation..."
+                setTraces [ ys; Energy.Sim.simulate ys sc ]
+            | [] -> ()
+                
 
     let renderTrace (trace: Trace) _ =
         html $"<contact-card .contact={trace}></contact-card>"
@@ -265,9 +277,12 @@ let EnergySimulationApp() =
                 }
         """
 
+    let year = yearStats |> List.tryHead |> Option.map (fun ys -> ys.year)
+
     html $"""
         <div class="energy-sim">
         <h2>Energijska simulacija</h2>
+        <span>Simulacija elektroenergetskega sistema na realnih podatkih donosa sonca in vetra za leto {year}<br>ob predpostaviki povečanih kapacitet vetrnih in solarnih elektrarn ter baterijskega shranjavanja energije.<span>
         <div class="energy-result">
             <table class="energy-table">
                 <thead>
@@ -275,19 +290,20 @@ let EnergySimulationApp() =
                 </thead>
                 <tbody>
                     {
-                        traces
+                        yearStats
                         |> Lit.mapUnique (fun ys -> $"{ys.year}{ys.isSimulated}") renderTraceRow
                     }
                     {
-                        match traces with
+                        match yearStats with
                         | [ys;ys'] -> renderDeltaRow ys ys'
                         | _ -> Lit.nothing
                     }
                 </tbody>
             </table>
+            {Energy.Form.EnergyForm(onSimConfigChanged, simConfig)}
             {notes}
             {
-                match traces with
+                match yearStats with
                 | [ys;ys'] -> renderCostList ys ys'
                 | _ -> Lit.nothing
             }

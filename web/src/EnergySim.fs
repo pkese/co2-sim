@@ -15,6 +15,12 @@ type SimConfig = {
         installedBatteryMWh = 0f
         batteryEfficiency = 0.9f
     }
+    static member initial = {
+        installedSolarMW = 500f
+        installedWindMW = 100f
+        installedBatteryMWh = 100f
+        batteryEfficiency = 0.9f
+    }
 
 
 let getSeries kind (series:Trace list) =

@@ -1,7 +1,7 @@
 
 
 This is a placeholder for raw data files  
-(not included into .git repo due to licensing or distribution permissions)
+ft(not included into .git repo due to licensing or distribution permissions)
 
 
 What's stored here? Stuff like:
