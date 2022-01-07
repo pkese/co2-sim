@@ -85,33 +85,6 @@ let renderOptions (cfg: Energy.Sim.SimConfig) (ys:Shared.Types.YearStats) (ys':S
         |]
 
         series = [|
-            match extractBat() with
-            | None -> ()
-            | Some (daily, dailyMin, dailyMax) ->
-                printfn "d0 = %f" startDate
-                let data =
-
-                    (dailyMin,dailyMax)
-                    //||> Array.mapi2 (fun i mn  mx -> box [|float32 i;mn;mx|])
-                    //||> Array.mapi2 (fun i mn  mx -> jsArray3 i mn mx)
-                    ||> Array.mapi2 (fun i mn  mx ->
-                        let d = startDate + (double i) * 86400_000.0;
-                        d,mn,mx)
-                yield box {|
-                    name="% baterije min/max na dan"
-                    ``type``="arearange"
-                    data=data
-                    yAxis=1
-                    color="#8085e9"
-                    opacity=0.3
-                |}
-                yield box {|
-                    name="% baterije dnevno povprečje"
-                    data=daily
-                    yAxis=1
-                    color="#8085e9"
-                    pointStart=startDate; pointInterval=86400_000.0
-                |}
             yield box {|
                 name="Voda"
                 data=water
@@ -150,6 +123,33 @@ let renderOptions (cfg: Energy.Sim.SimConfig) (ys:Shared.Types.YearStats) (ys':S
                 color="#c6d"
                 pointStart=startDate; pointInterval=86400_000.0
             |}
+            match extractBat() with
+            | None -> ()
+            | Some (daily, dailyMin, dailyMax) ->
+                printfn "d0 = %f" startDate
+                let data =
+
+                    (dailyMin,dailyMax)
+                    //||> Array.mapi2 (fun i mn  mx -> box [|float32 i;mn;mx|])
+                    //||> Array.mapi2 (fun i mn  mx -> jsArray3 i mn mx)
+                    ||> Array.mapi2 (fun i mn  mx ->
+                        let d = startDate + (double i) * 86400_000.0;
+                        d,mn,mx)
+                yield box {|
+                    name="% baterije min/max na dan"
+                    ``type``="arearange"
+                    data=data
+                    yAxis=1
+                    color="#8085e9"
+                    opacity=0.3
+                |}
+                yield box {|
+                    name="% baterije dnevno povprečje"
+                    data=daily
+                    yAxis=1
+                    color="#8085e9"
+                    pointStart=startDate; pointInterval=86400_000.0
+                |}
         |]
     |}
 

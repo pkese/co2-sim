@@ -180,6 +180,7 @@ let renderCostList (ys:YearStats) (ys':YearStats) =
         """
     html $"""
         <h2>Cena</h2>
+        <p>Minimalni stroški investicije, če bi se gradilo 'na veliko' (elektrogospodarstvo oz. država), <br> brez odkupa zemljišč, brez novih daljnovodov, brez korupcije.</p>
         <table class="energy-table">
             <thead>{header}</thead>
             <tbody>
@@ -205,30 +206,6 @@ let EnergySimulationApp() =
     Hook.useHmr(hmr)
     let _ = LitElement.init(fun cfg ->
         cfg.useShadowDom <- false
-        cfg.styles <- [
-            css $"""
-            :host {{
-                display: block;
-                //height: 100%%;
-                padding: 2em;
-            }}
-            .energy-table {{
-                border: 1px solid black;
-                border-collapse: collapse;
-                td {{ textAlgn: right }}
-                text-align:right;
-            }}
-            .energy-table td, .energy-table th {{
-                border: 1px solid black;
-                padding: 0.25em 0.5em 0.25em 0.5em;
-                text-align:right;
-                //color: red;
-            }}
-            .energy-table th {{
-                text-align: center;
-            }}
-            """
-        ]
     )
 
     let clasName = Hook.use_scoped_css <| $"""
@@ -307,7 +284,7 @@ let EnergySimulationApp() =
 
     html $"""
         <div class="energy-sim {clasName}">
-        <h2>Energijska simulacija</h2>
+        <h2>Scenariji prehoda na obnovljive vire energije</h2>
         <p>Simulacija elektroenergetskega sistema na realnih urnih podatkih donosa sonca in vetra za leto {year}<br>ob predpostaviki povečanih kapacitet vetrnih in solarnih elektrarn ter baterijskega shranjavanja energije.</p>
         <div class="energy-result">
             <table class="energy-table">
