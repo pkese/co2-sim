@@ -24,12 +24,31 @@ let EnergyForm( setSimConfig: Energy.Sim.SimConfig -> unit, initial: Energy.Sim.
                 height: 100%%;
             }}
             .energy-form {{
-                padding: 2em;
+                //padding: 2em;
+                padding-top: 0.5em;
             }}
             :host input {{
-                width:20em;
-                color: red;
+                //width: 6em;
                 text-align: right;
+            }}
+            :host input[type=number] {{
+                width: 5em;
+                text-align: right;
+            }}
+            .ico {{ color: #248; }}
+            i.ico {{
+                width: 1.5em;
+                line-height: 2em;
+            }}
+            span.ico {{
+                vertical-align: top;
+            }}
+            i.fa-circle {{ font-size: 1.2em }}
+            .fa-stack {{ font-size: 1em }}
+            span>i {{ vertical-align: middle }}
+            hr {{
+                margin:0.3em;
+                max-width: 22em;
             }}
         """
 
@@ -41,11 +60,14 @@ let EnergyForm( setSimConfig: Energy.Sim.SimConfig -> unit, initial: Energy.Sim.
     let buildNuclear, setBuildNuclear = Hook.useState(fst initial.extraNuclearMW)
     let toggleBuildNuclear _ = buildNuclear |> not |> setBuildNuclear
     let nuclear, setNuclear = Hook.useState($"%.0f{snd initial.extraNuclearMW}")
+    let stopCurrentNuclear, setStopCurrentNuclear = Hook.useState(fst initial.extraNuclearMW)
+    let toggleStopCurrentNuclear _ = stopCurrentNuclear |> not |> setStopCurrentNuclear
     let buildPumped, setBuildPumped = Hook.useState(fst initial.pumpedStorage)
     let toggleBuildPumped _ = buildPumped |> not |> setBuildPumped
     let pumped, setPumped = Hook.useState($"%.0f{(snd initial.pumpedStorage).capacity}")
-    let pumpedPow, setPumpedPow = Hook.useState($"%.0f{(snd initial.pumpedStorage).maxRelativePowerPercent}")
+    let pumpedPow, setPumpedPow = Hook.useState($"%.0f{(snd initial.pumpedStorage).maxPower}")
     let pumpedEfficiency, setPumpedEfficiency = Hook.useState($"%.0f{(snd initial.pumpedStorage).efficiencyPercent}")
+    let electricCars, setElectricCars = Hook.useState($"%.0f{initial.electricCarsPercent}")
     let error, setError = Hook.useState("")
 
     let setWind' ev =
@@ -54,13 +76,14 @@ let EnergyForm( setSimConfig: Energy.Sim.SimConfig -> unit, initial: Energy.Sim.
 
     let extractValues() =
         try
-            { Energy.Sim.SimConfig.current with
+            {
                 installedSolarMW = float32 solar
                 installedWindMW = float32 wind
                 battery = { capacity=float32 battery; power=PercentCapacity (float32 batteryPow); efficiencyPercent=float32 batteryEfficiency }
                 pumpedStorage = buildPumped, {capacity=float32 pumped; power=AbsoluteMW (float32 pumpedPow); efficiencyPercent=float32 pumpedEfficiency }
                 extraNuclearMW = buildNuclear, float32 nuclear
-                //batteryEfficiency: float32 // 0.9
+                stopCurrentNuclear = stopCurrentNuclear
+                electricCarsPercent = float32 electricCars
             } |> Ok
         with
         | e -> Error e.Message
@@ -79,44 +102,63 @@ let EnergyForm( setSimConfig: Energy.Sim.SimConfig -> unit, initial: Energy.Sim.
 
     printfn "buildNuclear=%A" buildNuclear
     html $"""
-        <p class="{clasName}">
+        <div class="{clasName}">
         <form class="energy-form" action="#">
-            <b>Simulirana inštalirana moč:</b><br>
+            <h7>Simulirana inštalirana moč:</h7>
+            <br/>
             
-            <input type="number" id="wind" name="wind" value="{wind}" size="6" min=0 step=50 @change={EvVal setWind} style="text-align:right;"/>
-            <label for="wind">MW vetrnic</label><br/>
-
-            <input type="number" id="solar" name="solar" value="{solar}" size="6" min=0 step=100 @change={EvVal setSolar} style="text-align:right;"/>
+            <i class="ico fas fa-sun"></i>
+            <input type="number" id="solar" name="solar" value="{solar}" size="6" min=0 step=100 @change={EvVal setSolar} />
             <label for="solar">MW fotopanelov</label><br/>
 
-            <input type="number" id="battery" name="battery" value="{battery}" size="6" step=50 min=0 @change={EvVal setBattery} style="text-align:right;"/>
+            <i class="ico fas fa-wind"></i>
+            <input type="number" id="wind" name="wind" value="{wind}" size="6" min=0 step=50 @change={EvVal setWind} />
+            <label for="wind">MW vetrnic</label><br/>
+
+            <i class="ico fas fa-car-battery"></i>
+            <input type="number" id="battery" name="battery" value="{battery}" size="6" step=50 min=0 @change={EvVal setBattery} />
             <label for="battery">MWh baterij z največjo močjo polnjenje/praznjenja</label>
-            <input type="number" id="batteryPow" name="batteryPow" value="{batteryPow}" size="3" step=1 min=1 @change={EvVal setBatteryPow} style="text-align:right;"/>
+            <input type="number" id="batteryPow" name="batteryPow" value="{batteryPow}" size="3" step=1 min=1 @change={EvVal setBatteryPow} />
             <label for="batteryPow">%% kapacitete</label>
             <br/>
 
-            <input type="checkbox" id="buildNuclear" name="buildNuclear" value="{buildNuclear}" @change={EvVal toggleBuildNuclear}>
-            <label for="buildNuclear">Zgradimo novo nuklearko </label>
-            <span style="visibility:{if buildNuclear then "visible" else "hidden"}">
-                <label for="buildNuclear"> s kapaciteto</label>
-                <input type="nuclear" id="nuclear" name="nuclear" value="{nuclear}" size="6" step=100 min=0 @change={EvVal setNuclear} style="text-align:right;" />
-                <label for="nuclear">MW</label>
-            </span>
-            <br/>
-
+            <i class="ico fas fa-water"></i>
             <input type="checkbox" id="buildPumped" name="buildPumped" value="{buildPumped}" @change={EvVal toggleBuildPumped}>
             <label for="buildPumped">Zgradimo ČHE Kozjak</label>
             <span style="visibility:{if buildPumped then "visible" else "hidden"}">
                 <label for="pumped"> s kapaciteto</label>
-                <input type="pumped" id="pumped" name="pumped" value="{pumped}" size="6" step=100 min=0 @change={EvVal setPumped} style="text-align:right;"/>
-                <label for="pumped">MWh in učinkovitostjo</label>
-                <input type="pumpedEfficiency" id="pumpedEfficiency" pumpedEfficiency="pumped" value="{pumpedEfficiency}" size="6" step=100 min=0 @change={EvVal setPumpedEfficiency} style="text-align:right;"/>
-                <label for="pumpedEfficiency">%%.</label>
+                <input type="number" id="pumped" name="pumped" value="{pumped}" size="6" step=100 min=0 @change={EvVal setPumped} />
+                <label for="pumped">MWh, močjo</label>
+                <input type="number" id="pumpedPow" name="pumpedPow" value="{pumpedPow}" size="6" step=100 min=0 @change={EvVal setPumpedPow} />
+                <label for="pumpedPow">MW in učinkovitostjo</label>
+                <input type="number" id="pumpedEfficiency" pumpedEfficiency="pumped" value="{pumpedEfficiency}" size="6" step=100 min=0 @change={EvVal setPumpedEfficiency} />
+                <label for="pumpedEfficiency">%%</label>
             </span>
-
-
             <br/>
+
+            <i class="ico fas fa-atom"></i>
+            <input type="checkbox" id="buildNuclear" name="buildNuclear" value="{buildNuclear}" @change={EvVal toggleBuildNuclear}>
+            <label for="buildNuclear">Zgradimo novo nuklearko </label>
+            <span style="visibility:{if buildNuclear then "visible" else "hidden"}">
+                <label for="buildNuclear"> z nazivno močjo</label>
+                <input type="number" id="nuclear" name="nuclear" value="{nuclear}" size="6" step=100 min=0 @change={EvVal setNuclear} style="text-align:right;" />
+                <label for="nuclear">MW</label>
+            </span>
+            <br/>
+
+            <i class="ico fas fa-times-circle"></i>
+            <input type="checkbox" id="stopCurrentNuclear" name="stopCurrentNuclear" value="{stopCurrentNuclear}" @change={EvVal toggleStopCurrentNuclear}>
+            <label for="stopCurrentNuclear">Ugasnemo obstoječo nuklearko</label>
+            <br/>
+
+            <i class="ico fas fa-car"></i>
+            <input type="number" id="electricCars" name="electricCars" value="{electricCars}" size="6" min=0 step=50 @change={EvVal setElectricCars} style="text-align:right;"/>
+            <label for="electricCars">%% avtomobilov se vozi na elektriko</label><br/>
+
+            <hr/>
+            <i class="ico fas fa-fw"></i>
             <input type="button" value="Izračunaj" @click={submit} >
         </form>
-        </p>
+        </div>
+        <p/>
     """

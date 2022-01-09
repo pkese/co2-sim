@@ -150,9 +150,32 @@ let dumpJson year =
     let json = Json.serializeEx cfg traces
     System.IO.File.WriteAllText($"../web/public/energy-traces-{year}.json", json)
   
-    
+let dumpCsv year =
+    let traces = loadTracesCsv year
+    let writeCsv (stream:System.IO.TextWriter) (traces: Trace list) =
+        // header
+        [ for t in traces -> string t.kind ]
+        |> String.concat ","
+        |> stream.Write
+        stream.Write "\r\n"
+        // data
+        let datas = traces |> List.map (fun trace -> trace.data)
+        for iRow in 0..datas.Head.Length-1 do
+            datas
+            |> Seq.iteri (fun i data ->
+                if i > 0 then stream.Write ','
+                let x = data[iRow]
+                let ix = int x
+                if float32 ix = x
+                then stream.Write ix
+                else stream.Write x
+            )
+            stream.Write "\r\n"
+    use stream = System.IO.File.CreateText $"tmp/energy-traces-{year}.csv"
+    writeCsv stream traces
 
 [2016..2021] |> Seq.iter dumpJson
+//[2016..2021] |> Seq.iter dumpCsv
 
 
 //printfn "totalConsumption: %f" (Array.sum load) // 13416246

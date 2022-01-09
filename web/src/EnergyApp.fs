@@ -267,7 +267,9 @@ let EnergySimulationApp() =
         <div class="energy-sim {clasName} container">
             <div class="row">
             <h2>Scenariji prehoda na obnovljive vire energije</h2>
-            <p>Simulacija elektroenergetskega sistema na realnih urnih podatkih donosa sonca in vetra za leto {year}<br>ob predpostaviki povečanih kapacitet vetrnih in solarnih elektrarn ter baterijskega shranjavanja energije.</p>
+            <p>Simulacija elektroenergetskega sistema na realnih urnih podatkih donosa sonca in vetra za leto {year}
+                <br>ob predpostaviki spremenjenih kapacitet vetrnih, solarnih, nuklearnih elektrarn in shranjavanja energije.
+            </p>
             </div>
             <div class="row">
                 <h4>Parametri simulacije</h4>

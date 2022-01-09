@@ -25,80 +25,117 @@ type SimConfig = {
     installedWindMW: float32
     battery: StorageConfig
     extraNuclearMW: bool * float32
+    stopCurrentNuclear: bool
     pumpedStorage: bool * StorageConfig
+    electricCarsPercent: float32
   } with
+
     static member current = {
         installedSolarMW = 278f
         installedWindMW = 3f
         battery = { capacity=0f; power=PercentCapacity 25f; efficiencyPercent=90f }
         extraNuclearMW = false, 1100f
-        pumpedStorage = false, { capacity=500f; power=AbsoluteMW 400f; efficiencyPercent=70f }
+        pumpedStorage = false, { capacity=8000f; power=AbsoluteMW 400f; efficiencyPercent=70f }
+        stopCurrentNuclear = false
+        electricCarsPercent = 0f
     }
-    static member initial = {
+
+    static member initial' = {
         installedSolarMW = 500f
         installedWindMW = 100f
         battery = { capacity=0f; power=PercentCapacity 25f; efficiencyPercent=90f }
         extraNuclearMW = false, 1100f
-        pumpedStorage = false, { capacity=500f; power=AbsoluteMW 400f; efficiencyPercent=70f }
+        pumpedStorage = false, { capacity=8000f; power=AbsoluteMW 400f; efficiencyPercent=70f }
+        stopCurrentNuclear = false
+        electricCarsPercent = 0f
     }
+
+    static member initial'' = {
+        installedSolarMW = 6000f
+        installedWindMW = 400f
+        battery = { capacity=6000f; power=PercentCapacity 25f; efficiencyPercent=90f }
+        extraNuclearMW = false, 1100f
+        pumpedStorage = false, { capacity=8000f; power=AbsoluteMW 400f; efficiencyPercent=70f }
+        stopCurrentNuclear = false
+        electricCarsPercent = 0f
+    }
+
+    static member initial = SimConfig.current
 
 
 let getSeries kind (series:Trace list) =
     series
     |> List.find (fun s -> s.kind=kind)
 
-module Simulate =
+module Balance =
     let battery (cfg: StorageConfig) (batLevels: float32[]) (batSource: float32[]) =
-        let capacity = float cfg.capacity
-        let efficiency = System.Math.Sqrt(float cfg.efficiencyPercent * 0.01)
-        let maxPower = float cfg.maxPower
+        let capacity = cfg.capacity
+        let efficiency = float32 <| System.Math.Sqrt(float cfg.efficiencyPercent * 0.01)
+        let maxPower = cfg.maxPower
         printfn "storage efficiency=%f, maxPower=%f" efficiency maxPower
-        let mutable level = 0.0
-        let sink i (amount: float32) =
-            let sinkableAmount = float amount / efficiency
-            let sinkable = ((min (capacity-level) sinkableAmount) |> max 0.0) |> min maxPower
-            level <- level + (sinkable*efficiency)
-            batLevels[i] <- float32 level
-            float32 (amount - float32 sinkable)
-        let source i (amountNeeded:float32) =
-            let amount = float amountNeeded / efficiency
-            let sourcable = (min level amount) //|> min maxPower
-            level <- level - sourcable
-            batLevels[i] <- float32 level
-            let sourced = sourcable * efficiency
-            batSource[i] <- float32 sourced
-            float32 (amountNeeded - float32 sourced)
-        source, sink
+        let mutable level = 0.0f
+        fun (next: int -> float32 -> float32) ->
+            fun i (amount: float32) ->
+                let amount = next i amount
+                if amount >= 0f then
+                    let available = ((capacity-level) * efficiency) |> min maxPower
+                    let sinkable = (min available amount) 
+                    level <- level + (sinkable/efficiency)
+                    batLevels[i] <- level
+                    amount - sinkable
+                else
+                    let available = (level * efficiency) |> min maxPower
+                    let sourcable = (min available -amount)
+                    level <- level - (sourcable/efficiency)
+                    batLevels[i] <- level
+                    batSource[i] <- sourcable
+                    amount + sourcable
 
-    let fossil (current: float32[]) (projected: float32[]) =
-        let sink i amount =
-            let sinkable = (current[i] - amount) |> max 0f
-            projected[i] <- sinkable // !!
-            amount - sinkable
-        let source i amountNeeded = 
-            let sourcable = min current[i] amountNeeded
-            projected[i] <- sourcable
-            amountNeeded - sourcable
-        source, sink
+    let fossil capacity (current: float32[]) (projected: float32[]) =
+        let getMaxAvailable =
+            match capacity with
+            | Some cap -> fun i -> cap
+            | None -> fun i -> current[i]
+        fun (next: int -> float32 -> float32) ->
+            fun i (amount: float32) ->
+                // positive = excess energy, negative = missing energy
+                let amount = next i (amount - current[i]) // ask children (incl. storage) to substitute for current fosil consumption
+                if amount >= 0f then
+                    projected[i] <- 0f
+                    amount
+                else
+                    //let sourcable = min current[i] -amount
+                    let sourcable = min (getMaxAvailable i) -amount
+                    projected[i] <- sourcable
+                    amount + sourcable
     
     let import (currentImport: float32[]) (currentExport: float32[]) (projected: float32[]) =
-        let sink i amount =
-            let available = max (currentImport[i]-currentExport[i]) 0f // if more import than export
-            let sinkable = min available amount
-            projected[i] <- currentImport[i] - sinkable
-            amount - sinkable
-        let source i amountNeeded = 
-            projected[i] <- currentImport[i]
-            amountNeeded
-        source, sink
+        fun (next: int -> float32 -> float32) ->
+            fun i (amount: float32) ->
+                let amount = next i amount
+                if amount >= 0f then
+                    let sinkable = min currentImport[i] amount
+                    projected[i] <- currentImport[i] - sinkable
+                    amount - sinkable
+                else
+                    projected[i] <- currentImport[i] - amount
+                    0f
 
     let excess (projected: float32[]) =
-        let sink i amount =
-            projected[i] <- amount
-        let source i amountNeeded = 
-            projected[i] <- 0f
-            amountNeeded
-        source, sink
+        fun (next: int -> float32 -> float32) ->
+            fun i (amount: float32) ->
+                let amount = next i amount
+                if amount >= 0f then
+                    projected[i] <- amount
+                    0f
+                else
+                    projected[i] <- 0f
+                    amount
+
+    let nothing = fun i amount -> amount
+    let dummy =
+        fun (next: int -> float32 -> float32) ->
+            fun i (amount: float32) -> next i amount
 
 
 
@@ -108,77 +145,71 @@ let simulate (yStats:YearStats) (cfg:SimConfig) =
     let coal = yStats[Coal]
     let gas = yStats[Gas]
     //let load = yStats[Load]
-    let staticProd = yStats[StaticProd]
     //let total = yStats[TotalProd]
     let import = yStats[Import]
-    let totalProd = yStats[TotalProd]
     let export = yStats[Export]
     let wind = yStats[Wind]
     let solar = yStats[Solar]
     let nuclear = yStats[Nuclear]
 
+    let nSamples = wind.data.Length
+
     let kWind = cfg.installedWindMW / wind.capacity.Value
     let kSolar = cfg.installedSolarMW / solar.capacity.Value
     let nuclear' = 
-        match cfg.extraNuclearMW, nuclear.capacity with
-        | (true, newCapacity), Some capacity ->
-            let k = (capacity*0.5f + newCapacity) / (capacity*0.5f)
-            printfn "kNuclear = %f (current capacity=%f)" k capacity
-            { nuclear with capacity = Some (capacity+newCapacity); data=nuclear.data |> Array.map (( * ) k); total = nuclear.total * k }
+        match cfg.extraNuclearMW, cfg.stopCurrentNuclear with
+        | (true, newCapacity), stopCurrentNuclear ->
+            let capacity = nuclear.capacity.Value
+            let k =
+                if stopCurrentNuclear
+                then newCapacity / capacity
+                else (capacity + newCapacity) / capacity
+            let nuclear' = { nuclear with capacity = Some (capacity*k); data=nuclear.data |> Array.map (( * ) k); total = nuclear.total * k }
+            printfn "kNuclear = %f (current capacity=%f) d[100]=%f->%f" k capacity nuclear.data[100] nuclear'.data[100]
+            nuclear'
+        | (false,_), true -> { nuclear with capacity = Some 0f; data=Array.zeroCreate nSamples; total=0f }
         | _ -> nuclear
 
     let wind' = { wind with capacity=Some (wind.capacity.Value * kWind); data = wind.data |> Array.map (( * ) kWind); total = wind.total * kWind }
     let solar' = { solar with capacity=Some (solar.capacity.Value * kSolar); data = solar.data |> Array.map (( * ) kSolar); total = solar.total * kSolar }
-    let nSamples = wind'.data.Length
+
+    let cars =
+        if cfg.electricCarsPercent < 0.1f then
+            Array.zeroCreate nSamples
+        else
+            let kwhDaily = (15_000./365./100.*22.) * 1_000_000. * float cfg.electricCarsPercent / 100.
+            let mwhHourly = kwhDaily / 1000. / 24. |> float32
+            printfn "cars: %f daily, %f hourly MW" (kwhDaily/1000.) mwhHourly
+            Array.init nSamples (fun i -> mwhHourly)
+
     let coal' = Array.zeroCreate nSamples
     let gas' = Array.zeroCreate nSamples
     let batLevels = Array.zeroCreate nSamples
     let batAmount = Array.zeroCreate nSamples
     let excess = Array.zeroCreate nSamples
     let import' = Array.zeroCreate nSamples
-    let coalSource, coalSink = Simulate.fossil coal.data coal'
-    let gasSource, gasSink = Simulate.fossil gas.data gas'
-    let batSource, batSink = Simulate.battery cfg.battery batLevels batAmount
     let pumpedLevels = Array.zeroCreate nSamples
     let pumpedAmount = Array.zeroCreate nSamples
-    let dummySourceOrSink i x = x
-    let pumpedSource, pumpedSink =
-        match cfg.pumpedStorage with
-        | true, pumpedCfg -> Simulate.battery pumpedCfg pumpedLevels pumpedAmount
-        | false, _ -> dummySourceOrSink, dummySourceOrSink
-    let excessSource, excessSink = Simulate.excess excess
-    let importSource, importSink = Simulate.import import.data export.data import'
 
-    let inline source i amount =
-        amount
-        |> batSource i
-        |> pumpedSource i
-        |> importSource i
-        |> gasSource i
-        |> coalSource i
-        //|> excessSource i
-        |> fun x -> if x > 0f then failwithf "sourcing should amount to zero on sample %d, have %f" i x
-    let inline sink i amount =
-        amount
-        |> coalSink i
-        |> gasSink i
-        |> batSink i
-        |> pumpedSink i
-        |> importSink i
-        |> excessSink i
+    let balance =
+        let balanceCoal = Balance.fossil coal.capacity coal.data coal'
+        let balanceGas = Balance.fossil None gas.data gas'
+        let balanceBat = Balance.battery cfg.battery batLevels batAmount
+        let balancePumped =
+            match cfg.pumpedStorage with
+            | true, pumpedCfg -> Balance.battery pumpedCfg pumpedLevels pumpedAmount
+            | false, _ -> Balance.dummy
+        let balanceExcess = Balance.excess excess
+        let balanceImport = Balance.import import.data export.data import'
+        balanceExcess (balanceImport (balanceCoal (balanceGas (balancePumped (balanceBat Balance.nothing)))))
 
 
     for i in 0..nSamples-1 do
-        let mutable e = wind'.data[i] + solar'.data[i] + nuclear'.data[i] + staticProd.data[i] - totalProd.data[i] // load.data[i]
-        if e >= 0f then
-            // excess energy
-
-            //!! todo: excess is less than fossilBurn -> discharge other sources to substitute for fossil
-
-            sink i e
-        else
-            // missing energy
-            source i -e
+        let current = wind.data[i] + solar.data[i] + nuclear.data[i]
+        let simulated = wind'.data[i] + solar'.data[i] + nuclear'.data[i] - cars[i]
+        let unbalanced = balance i (simulated-current)
+        if unbalanced > 0.001f then
+            failwithf "mismatching balance of %f for datapoint %d" unbalanced i
 
     { yStats with
         isSimulated = true
@@ -190,6 +221,11 @@ let simulate (yStats:YearStats) (cfg:SimConfig) =
             |> Map.add Coal { coal with data=coal'; total=Array.sum coal' }
             |> Map.add Gas { gas with data=gas'; total=Array.sum gas' }
             |> Map.add BatteryLevel { kind=BatteryLevel; capacity=Some cfg.battery.capacity; data=batLevels; total=Array.sum batLevels }
+            |> fun m ->
+                if fst cfg.pumpedStorage then
+                    m
+                    |> Map.add PumpedLevel { kind=PumpedLevel; capacity=Some (snd cfg.pumpedStorage).capacity; data=pumpedLevels; total=Array.sum pumpedLevels }
+                else m
             |> Map.add Battery { kind=Battery; capacity=Some cfg.battery.capacity; data=batAmount; total=Array.sum batAmount }
             |> Map.add Excess { kind=Excess; capacity=None; data=excess; total=Array.sum excess }
             |> Map.add Import { import with data=import'; total=Array.sum import' }

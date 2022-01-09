@@ -21,9 +21,17 @@ let stringToKindMap =
 
 type Trace with
     static member fromJsonTrace (t:JsonTrace) : Trace =
+        let kind = stringToKindMap[t.kind]
+        let capacity =
+            match kind with
+            | Nuclear ->
+                match t.capacity with
+                | Some c when c > 600f -> Some (c * 0.5f)
+                | x -> x
+            | _ -> t.capacity
         {
-            kind = stringToKindMap[t.kind]
-            capacity=t.capacity
+            kind=kind
+            capacity=capacity
             data=t.data
             total=t.total
         }

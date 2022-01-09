@@ -18,6 +18,7 @@ type TraceKind =
     | Export
     | Battery // source
     | BatteryLevel
+    | PumpedLevel
     | Excess
 module TraceKind =
     let isWindOrSolar = function Wind | Solar -> true | _ -> false
@@ -51,7 +52,8 @@ type YearStats = {
     static member fromTraces year isSimulated traces = {
         year = year
         isSimulated = isSimulated
-        traces = traces |> Seq.map (fun trace -> trace.kind, trace) |> Map.ofSeq
+        traces =
+            traces |> Seq.map (fun trace -> trace.kind, trace) |> Map.ofSeq
     }
     static member getTraceList ys = [ for kv in ys.traces -> kv.Value ]
 

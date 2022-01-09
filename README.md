@@ -1,4 +1,10 @@
 
+# TODO
+
+- Collect: use yesterday's data (at same hour) for missing values instead of interpolation
+- Collect: handle DST (missing or added) hours gracefully (dont' interpolate spring DST switch)
+
+
 # Electricity Data
 
 Data downloaded from 

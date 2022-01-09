@@ -42,14 +42,32 @@ let renderOptions (cfg: Energy.Sim.SimConfig) (ys:Shared.Types.YearStats) (ys':S
             daily[j] <- x
         daily, mx
 
-    let extractBat () =
-        match ys'.traces |> Map.tryFind BatteryLevel with
-        | None -> None
-        | Some b when b.capacity = None -> None
-        | Some b when b.capacity.Value = 0f -> None
-        | Some bat ->
-            let data = bat.data
-            let capacity = bat.capacity.Value
+    let battery =
+        let bat = 
+            match ys'.traces |> Map.tryFind BatteryLevel with
+            | None -> None
+            | Some b when b.capacity = None -> None
+            | Some b when b.capacity.Value = 0f -> None
+            | Some bat ->
+                Some (bat.data, bat.capacity)
+        let pumped =
+            match ys'.traces |> Map.tryFind PumpedLevel with
+            | None -> None
+            | Some b when b.capacity = None -> None
+            | Some b when b.capacity.Value = 0f -> None
+            | Some bat ->
+                Some (bat.data, bat.capacity)
+        let sum =
+            match bat, pumped with
+            | Some x, None -> Some x
+            | None, Some x -> Some x
+            | Some (bData, bCapacity), Some (pData, pCapacity) ->
+                let capacity = (bCapacity |> Option.defaultValue 0f) + (pCapacity |> Option.defaultValue 0f)
+                Some (Array.init bData.Length (fun i -> bData[i]+pData[i]), Some capacity)
+            | None, None -> None
+        match sum with
+        | Some (data, capacity) ->
+            let capacity = capacity.Value
             let daily = Array.zeroCreate ((data.Length+1) / 24)
             let dailyMin = Array.init ((data.Length+1) / 24) (fun i -> Single.MaxValue)
             let dailyMax = Array.zeroCreate ((data.Length+1) / 24)
@@ -60,7 +78,7 @@ let renderOptions (cfg: Energy.Sim.SimConfig) (ys:Shared.Types.YearStats) (ys':S
                 dailyMax[j] <- max dailyMax[j] x
                 daily[j] <- daily[j] + (x/24f)
             Some (daily, dailyMin, dailyMax)
-
+        | None -> None
 
     let solar, mxSolar = extractDaily ys' Solar
     let wind, mxWind = extractDaily ys' Wind
@@ -80,8 +98,11 @@ let renderOptions (cfg: Energy.Sim.SimConfig) (ys:Shared.Types.YearStats) (ys':S
 
         xAxis = {| ``type`` = "datetime" |}
         yAxis = [|
-            box {| title=box {|text="Proizvodnja GWh"|} |}
-            box {| title=box {|text="Stanje baterije %"|}; opposite=true; max=100 |}
+            yield box {| title=box {|text="Proizvodnja GWh"|} |}
+            match battery with
+            | None -> ()
+            | Some _ ->
+                yield box {| title=box {|text="Stanje baterije+ČHE %"|}; opposite=true; max=100; min=0 |}
         |]
 
         series = [|
@@ -123,7 +144,7 @@ let renderOptions (cfg: Energy.Sim.SimConfig) (ys:Shared.Types.YearStats) (ys':S
                 color="#c6d"
                 pointStart=startDate; pointInterval=86400_000.0
             |}
-            match extractBat() with
+            match battery with
             | None -> ()
             | Some (daily, dailyMin, dailyMax) ->
                 printfn "d0 = %f" startDate
@@ -136,7 +157,7 @@ let renderOptions (cfg: Energy.Sim.SimConfig) (ys:Shared.Types.YearStats) (ys':S
                         let d = startDate + (double i) * 86400_000.0;
                         d,mn,mx)
                 yield box {|
-                    name="% baterije min/max na dan"
+                    name="% baterije+ČHE min/max na dan"
                     ``type``="arearange"
                     data=data
                     yAxis=1
@@ -144,7 +165,7 @@ let renderOptions (cfg: Energy.Sim.SimConfig) (ys:Shared.Types.YearStats) (ys':S
                     opacity=0.3
                 |}
                 yield box {|
-                    name="% baterije dnevno povprečje"
+                    name="% baterije+ČHE dnevno povprečje"
                     data=daily
                     yAxis=1
                     color="#8085e9"
