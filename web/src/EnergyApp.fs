@@ -12,25 +12,6 @@ let register() =
     Energy.Chart.register()
     ()
 
-
-//[<LitElement("trace-table-row")>]
-
-let simConfig =
-    { Energy.Sim.SimConfig.current with
-        installedSolarMW = 6000f
-        installedWindMW = 400f
-        installedBatteryMWh = 6000f
-        batteryEfficiency = 0.9f
-    }
-
-let simConfig' =
-    { Energy.Sim.SimConfig.current with
-        installedSolarMW = 1000f
-        installedWindMW = 100f
-        installedBatteryMWh = 100f
-        batteryEfficiency = 0.9f
-    }
-
 let colName = function
     | Oil -> "Nafta"
     | Gas -> "Plin"
@@ -94,7 +75,7 @@ let renderTraceRow(ys:YearStats) =
         | None -> Lit.nothing
 
     html $"""
-        <tr>
+        <tr class={Lit.classes ["table-info", ys.isSimulated]}>
             <th>{getYsYearName ys}</th>
             { installedColumns
                 |> Lit.mapUnique (fun col -> $"{col}") (fun col -> html $"<td>{renderCapacityCell col}</td>")}
@@ -199,8 +180,6 @@ let renderCostList (ys:YearStats) (ys':YearStats) =
         </table>
     """
     
-
-
 [<LitElement("energy-app")>]
 let EnergySimulationApp() =
     Hook.useHmr(hmr)
@@ -208,14 +187,15 @@ let EnergySimulationApp() =
         cfg.useShadowDom <- false
     )
 
-    let clasName = Hook.use_scoped_css <| $"""
+    let clasName = Hook.use_scoped_css <| css $"""
         :host {{
             display: block;
             height: 100%%;
             margin: auto;
         }}
         :host.energy-sim {{
-            padding: 2em;
+            //padding: 2em;
+            padding-top: 2em;
         }}
         .energy-table {{
             border: 1px solid black;
@@ -271,50 +251,61 @@ let EnergySimulationApp() =
             "Kadar je energije v izobilju, se po vrsti: zaustavi premog, plin, polni baterijo, zmanjša uvoz, preostanek se šteje kot presežek."
         ]
         html $"""
-        <p>{Lit.ofText "Opombe:"}
-            <ul>
+            <h5>{Lit.ofText "Opombe:"}</h5>
+            <ul class="list" style="padding-left:2em">
                 {
                     texts
                     |> Seq.indexed
                     |> Lit.mapUnique (fst >> string) (fun (i,text) -> html $"<li>{text}</li>")
                 }
+            </ul>
         """
 
     let year = yearStats |> List.tryHead |> Option.map (fun ys -> ys.year)
 
     html $"""
-        <div class="energy-sim {clasName}">
-        <h2>Scenariji prehoda na obnovljive vire energije</h2>
-        <p>Simulacija elektroenergetskega sistema na realnih urnih podatkih donosa sonca in vetra za leto {year}<br>ob predpostaviki povečanih kapacitet vetrnih in solarnih elektrarn ter baterijskega shranjavanja energije.</p>
-        <div class="energy-result">
-            <table class="energy-table">
-                <thead>
-                    {renderTraceHeader()}
-                </thead>
-                <tbody>
-                    {
-                        yearStats
-                        |> Lit.mapUnique (fun ys -> $"{ys.year}{ys.isSimulated}") renderTraceRow
-                    }
-                    {
-                        match yearStats with
-                        | [ys;ys'] -> renderDeltaRow ys ys'
-                        | _ -> Lit.nothing
-                    }
-                </tbody>
-            </table>
-            {Energy.Form.EnergyForm(onSimConfigChanged, simConfig)}
-            {notes}
-            {
-                match yearStats with
-                | [ys;ys'] -> renderCostList ys ys'
-                | _ -> Lit.nothing
-            }
-            { match yearStats with
-               | [] -> Lit.nothing
-               | ys::ys'::_ -> Energy.Chart.EnergyChart simConfig ys ys'
-               | ys::[] -> Lit.nothing
-            }
-        </div>
+        <div class="energy-sim {clasName} container">
+            <div class="row">
+            <h2>Scenariji prehoda na obnovljive vire energije</h2>
+            <p>Simulacija elektroenergetskega sistema na realnih urnih podatkih donosa sonca in vetra za leto {year}<br>ob predpostaviki povečanih kapacitet vetrnih in solarnih elektrarn ter baterijskega shranjavanja energije.</p>
+            </div>
+            <div class="row">
+                <h4>Parametri simulacije</h4>
+                {Energy.Form.EnergyForm(onSimConfigChanged, simConfig)}
+            </div>
+            <div class="energy-result row">
+                <h4>Rezultat</h4>
+                <table class="energy-table table table-bordered">
+                    <thead>
+                        {renderTraceHeader()}
+                    </thead>
+                    <tbody>
+                        {
+                            yearStats
+                            |> Lit.mapUnique (fun ys -> $"{ys.year}{ys.isSimulated}") renderTraceRow
+                        }
+                        {
+                            match yearStats with
+                            | [ys;ys'] -> renderDeltaRow ys ys'
+                            | _ -> Lit.nothing
+                        }
+                    </tbody>
+                </table>
+                {notes}
+            </div>
+            <div>
+                {
+                    match yearStats with
+                    | [ys;ys'] -> renderCostList ys ys'
+                    | _ -> Lit.nothing
+                }
+            </div>
+            <div class="row">
+                { match yearStats with
+                    | [] -> Lit.nothing
+                    | ys::ys'::_ -> Energy.Chart.EnergyChart simConfig ys ys'
+                    | ys::[] -> Lit.nothing
+                }
+            </div>
         </div>
     """

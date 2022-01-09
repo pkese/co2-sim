@@ -53,14 +53,14 @@ module Trace =
             }
         let importExport = 
             let load = sinks |> List.find (fun t -> t.kind = Load)
-            let prod = totalProduction.data
-            let cons = load.data
-            let import = Array.zeroCreate prod.Length
-            let export = Array.zeroCreate prod.Length
-            for i in 0..prod.Length-1 do
-                let x = cons[i] - prod[i]
-                if x > 0f then import[i] <- x
-                else export[i] <- -x
+            let production = totalProduction.data
+            let consumption = load.data
+            let import = Array.zeroCreate production.Length
+            let export = Array.zeroCreate production.Length
+            for i in 0..production.Length-1 do
+                let missing = consumption[i] - production[i]
+                if missing > 0f then import[i] <- missing
+                else export[i] <- -missing
             [
                 { kind=Import; capacity=None; data=import; total=Array.sum import }
                 { kind=Export; capacity=None; data=export; total=Array.sum export }

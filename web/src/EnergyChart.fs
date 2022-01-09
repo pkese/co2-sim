@@ -164,6 +164,6 @@ let EnergyChart (cfg: Energy.Sim.SimConfig) (ys:Shared.Types.YearStats) (ys':Sha
 
     html $"""
         <p>
-            <div id="chart_container" style="width:1000px; height:600px;" />
+            <div id="chart_container" style="width:100%%; height:600px;" />
         </p>
     """

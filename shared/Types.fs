@@ -19,13 +19,13 @@ type TraceKind =
     | Battery // source
     | BatteryLevel
     | Excess
-module TraceKind =    
+module TraceKind =
     let isWindOrSolar = function Wind | Solar -> true | _ -> false
     let isFossil = function Oil | Gas | Coal -> true | _ -> false
-    let isStatic = function Nuclear | Hydro | HydroStorage | Waste -> true | _ -> false
+    let isStatic = function Hydro | HydroStorage | Waste -> true | _ -> false
     //let isFossil = function Coal -> true | _ -> false
     //let isStatic = function Oil | Gas | Nuclear | Hydro | HydroStorage | Waste -> true | _ -> false
-    let inline isSource x = isWindOrSolar x || isFossil x || isStatic x
+    let inline isSource x = isWindOrSolar x || isFossil x || isStatic x || x=Nuclear
 
 
 type Trace = {

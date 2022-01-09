@@ -7,6 +7,8 @@ open Elmish
 open Lit
 open Lit.Elmish
 
+let inline css x = x
+
 module LitLabs =
     type ScrollLayout =
         interface end
