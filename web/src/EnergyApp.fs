@@ -30,6 +30,7 @@ let colName = function
     | Export -> "Izvoz"
     | Battery -> "Baterija" // source
     | BatteryLevel -> "Nivo baterije"
+    | PumpedLevel -> "Nivo ČHE"
     | Excess -> "Presežek"
 
 
@@ -92,8 +93,8 @@ let renderDeltaRow (ys:YearStats) (ys':YearStats) =
         match pre, post with
         | Some pre, Some post ->
             let delta = post / pre
-            if delta > 1f
-            then Lit.ofText <| sprintf "%.1fx" delta
+            if delta > 2f
+            then Lit.ofText <| sprintf "%.2fx" delta
             else Lit.ofText <| sprintf "%.1f%%" (100f * delta)
         | _, _ -> Lit.nothing
 
@@ -133,7 +134,8 @@ let renderCostList (ys:YearStats) (ys':YearStats) =
         getDelta pre post
         
     let priceOf = function
-        | Solar -> 790f // https://www.utilitydive.com/news/us-utility-scale-solar-storage-prices-drop-12-in-past-year-but-supply-c/610825/
+        //| Solar -> 790f // https://www.utilitydive.com/news/us-utility-scale-solar-storage-prices-drop-12-in-past-year-but-supply-c/610825/
+        | Solar -> 1000f // https://www.utilitydive.com/news/us-utility-scale-solar-storage-prices-drop-12-in-past-year-but-supply-c/610825/
         | Wind -> 1500f // https://www.windustry.org/how_much_do_wind_turbines_cost
         | Battery -> 340f // https://en.wikipedia.org/wiki/Hornsdale_Power_Reserve#Expansion
         | other -> failwithf $"missing cost of {other}"
@@ -161,7 +163,11 @@ let renderCostList (ys:YearStats) (ys':YearStats) =
         """
     html $"""
         <h2>Cena</h2>
-        <p>Minimalni stroški investicije, če bi se gradilo 'na veliko' (elektrogospodarstvo oz. država), <br> brez odkupa zemljišč, brez novih daljnovodov, brez korupcije.</p>
+        <p>Stroški investicije
+            <br/>če se fotovoltaika gradi na strehah individualnih in gospodarskih objektov (brez uničevanja narave)
+            <br/>baterije pa 'utility scale' (cene kot v Avstraliji).
+            <br/>TODO: cene nukleark in ČHE
+        </p>
         <table class="energy-table">
             <thead>{header}</thead>
             <tbody>
@@ -246,9 +252,11 @@ let EnergySimulationApp() =
 
     let notes =
         let texts = [
-            "Za NEK se šteje samo slovenski del proizvodnje. Za toliko je znižan tudi izvoz."
+            "Za obstoječo NE Krško se šteje samo slovenski del proizvodnje. Za toliko je znižan tudi izvoz."
             "Proizvodnja baterije v tabeli je prikazana kot priskevek baterije k letni proizvodnji: 90% shranjene energije, ki jo baterija vrne v omrežje."
             "Kadar je energije v izobilju, se po vrsti: zaustavi premog, plin, polni baterijo, zmanjša uvoz, preostanek se šteje kot presežek."
+            "Avtomobili skupaj delujejo kot ena velika baterija: lastniki avtomobile vsak dan napolnijo do 75%, oz. do 100% kadar je elektrike v izobilju."
+            "Ker nimamo specifičnih podatkov za reko Savo, nove HE na Savi simuliramo kot da bi za enak faktor povečali moč vseh slovenskih HE neglede na reko."
         ]
         html $"""
             <h5>{Lit.ofText "Opombe:"}</h5>
@@ -266,7 +274,7 @@ let EnergySimulationApp() =
     html $"""
         <div class="energy-sim {clasName} container">
             <div class="row">
-            <h2>Scenariji prehoda na obnovljive vire energije</h2>
+            <h2>Scenariji prehoda na trajnostne vire energije</h2>
             <p>Simulacija elektroenergetskega sistema na realnih urnih podatkih donosa sonca in vetra za leto {year}
                 <br>ob predpostaviki spremenjenih kapacitet vetrnih, solarnih, nuklearnih elektrarn in shranjavanja energije.
             </p>

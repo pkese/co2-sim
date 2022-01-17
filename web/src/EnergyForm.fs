@@ -62,6 +62,9 @@ let EnergyForm( setSimConfig: Energy.Sim.SimConfig -> unit, initial: Energy.Sim.
     let nuclear, setNuclear = Hook.useState($"%.0f{snd initial.extraNuclearMW}")
     let stopCurrentNuclear, setStopCurrentNuclear = Hook.useState(fst initial.extraNuclearMW)
     let toggleStopCurrentNuclear _ = stopCurrentNuclear |> not |> setStopCurrentNuclear
+    let buildHydro, setBuildHydro = Hook.useState(fst initial.hydropowerExtraSavaGWh)
+    let toggleBuildHydro _ = buildHydro |> not |> setBuildHydro
+    let hydro, setHydro = Hook.useState($"%.0f{snd initial.hydropowerExtraSavaGWh}")
     let buildPumped, setBuildPumped = Hook.useState(fst initial.pumpedStorage)
     let toggleBuildPumped _ = buildPumped |> not |> setBuildPumped
     let pumped, setPumped = Hook.useState($"%.0f{(snd initial.pumpedStorage).capacity}")
@@ -84,6 +87,7 @@ let EnergyForm( setSimConfig: Energy.Sim.SimConfig -> unit, initial: Energy.Sim.
                 extraNuclearMW = buildNuclear, float32 nuclear
                 stopCurrentNuclear = stopCurrentNuclear
                 electricCarsPercent = float32 electricCars
+                hydropowerExtraSavaGWh = buildHydro, float32 hydro
             } |> Ok
         with
         | e -> Error e.Message
@@ -117,9 +121,9 @@ let EnergyForm( setSimConfig: Energy.Sim.SimConfig -> unit, initial: Energy.Sim.
 
             <i class="ico fas fa-car-battery"></i>
             <input type="number" id="battery" name="battery" value="{battery}" size="6" step=50 min=0 @change={EvVal setBattery} />
-            <label for="battery">MWh baterij z največjo močjo polnjenje/praznjenja</label>
+            <label for="battery">MWh baterij</label>  <!-- z največjo močjo polnjenje/praznjenja</label>
             <input type="number" id="batteryPow" name="batteryPow" value="{batteryPow}" size="3" step=1 min=1 @change={EvVal setBatteryPow} />
-            <label for="batteryPow">%% kapacitete</label>
+            <label for="batteryPow">%% MW/MWh kapacitete</label>  -->
             <br/>
 
             <i class="ico fas fa-water"></i>
@@ -127,12 +131,22 @@ let EnergyForm( setSimConfig: Energy.Sim.SimConfig -> unit, initial: Energy.Sim.
             <label for="buildPumped">Zgradimo ČHE Kozjak</label>
             <span style="visibility:{if buildPumped then "visible" else "hidden"}">
                 <label for="pumped"> s kapaciteto</label>
-                <input type="number" id="pumped" name="pumped" value="{pumped}" size="6" step=100 min=0 @change={EvVal setPumped} />
+                <input type="number" id="pumped" name="pumped" value="{pumped}" size="6" step=500 min=0 @change={EvVal setPumped} />
                 <label for="pumped">MWh, močjo</label>
-                <input type="number" id="pumpedPow" name="pumpedPow" value="{pumpedPow}" size="6" step=100 min=0 @change={EvVal setPumpedPow} />
+                <input type="number" id="pumpedPow" name="pumpedPow" value="{pumpedPow}" size="6" step=20 min=0 @change={EvVal setPumpedPow} />
                 <label for="pumpedPow">MW in učinkovitostjo</label>
-                <input type="number" id="pumpedEfficiency" pumpedEfficiency="pumped" value="{pumpedEfficiency}" size="6" step=100 min=0 @change={EvVal setPumpedEfficiency} />
+                <input type="number" id="pumpedEfficiency" pumpedEfficiency="pumped" value="{pumpedEfficiency}" size="6" step=1 min=0 @change={EvVal setPumpedEfficiency} />
                 <label for="pumpedEfficiency">%%</label>
+            </span>
+            <br/>
+
+            <i class="ico fas fa-water"></i>
+            <input type="checkbox" id="buildHydro" name="buildHydro" value="{buildHydro}" @change={EvVal toggleBuildHydro}>
+            <label for="buildHydro">Zgradimo 10 HE na srednji Savi + Mokrice</label>
+            <span style="visibility:{if buildHydro then "visible" else "hidden"}">
+                <label for="hydro"> z letno proizvodnjo</label>
+                <input type="number" id="hydro" name="hydro" value="{hydro}" size="6" step=100 min=0 @change={EvVal setHydro} style="text-align:right;" />
+                <label for="hydro">GWh</label>
             </span>
             <br/>
 
@@ -148,11 +162,11 @@ let EnergyForm( setSimConfig: Energy.Sim.SimConfig -> unit, initial: Energy.Sim.
 
             <i class="ico fas fa-times-circle"></i>
             <input type="checkbox" id="stopCurrentNuclear" name="stopCurrentNuclear" value="{stopCurrentNuclear}" @change={EvVal toggleStopCurrentNuclear}>
-            <label for="stopCurrentNuclear">Ugasnemo obstoječo nuklearko</label>
+            <label for="stopCurrentNuclear">Ustavimo obstoječo nuklearko</label>
             <br/>
 
             <i class="ico fas fa-car"></i>
-            <input type="number" id="electricCars" name="electricCars" value="{electricCars}" size="6" min=0 step=50 @change={EvVal setElectricCars} style="text-align:right;"/>
+            <input type="number" id="electricCars" name="electricCars" value="{electricCars}" size="6" min=0 step=5 @change={EvVal setElectricCars} style="text-align:right;"/>
             <label for="electricCars">%% avtomobilov se vozi na elektriko</label><br/>
 
             <hr/>

@@ -28,6 +28,7 @@ type SimConfig = {
     stopCurrentNuclear: bool
     pumpedStorage: bool * StorageConfig
     electricCarsPercent: float32
+    hydropowerExtraSavaGWh: bool * float32
   } with
 
     static member current = {
@@ -38,6 +39,7 @@ type SimConfig = {
         pumpedStorage = false, { capacity=8000f; power=AbsoluteMW 400f; efficiencyPercent=70f }
         stopCurrentNuclear = false
         electricCarsPercent = 0f
+        hydropowerExtraSavaGWh = false, (1044f (* savske *) + 131f (* mokrice *))
     }
 
     static member initial' = {
@@ -48,6 +50,7 @@ type SimConfig = {
         pumpedStorage = false, { capacity=8000f; power=AbsoluteMW 400f; efficiencyPercent=70f }
         stopCurrentNuclear = false
         electricCarsPercent = 0f
+        hydropowerExtraSavaGWh = false, (1044f (* savske *) + 131f (* mokrice *))
     }
 
     static member initial'' = {
@@ -58,6 +61,7 @@ type SimConfig = {
         pumpedStorage = false, { capacity=8000f; power=AbsoluteMW 400f; efficiencyPercent=70f }
         stopCurrentNuclear = false
         electricCarsPercent = 0f
+        hydropowerExtraSavaGWh = false, (1044f (* savske *) + 131f (* mokrice *))
     }
 
     static member initial = SimConfig.current
@@ -90,6 +94,31 @@ module Balance =
                     batLevels[i] <- level
                     batSource[i] <- sourcable
                     amount + sourcable
+
+    let carBattery nCars (batLevels: float32[]) (batSink: float32[]) =
+        if nCars < 2f then
+            fun (next: int -> float32 -> float32) ->
+                fun i (amount: float32) ->
+                    next i amount
+        else
+            let kwhDaily = (15_000./365./100.*22.) * float nCars
+            let mwhHourly = kwhDaily / 1000. / 24. |> float32
+            let batteryMax = nCars * 60f * 0.001f // 60kWh -> MWh
+            let batteryMin = batteryMax * 0.7f // start charging at 75%
+            printfn "cars: %.3f<kWh> daily, %.3f<MW> hourly, %.3f<MWh> total battery capacity" (kwhDaily/1000.) mwhHourly batteryMax
+            let mutable batLevel = (batteryMin * 3f + batteryMax) / 4f
+            fun (next: int -> float32 -> float32) ->
+                fun i (amount: float32) ->
+                    batLevel <- batLevel - mwhHourly
+                    let minCharge = (batteryMin - batLevel) |> max 0f
+                    let maxCharge = (batteryMax - batLevel) |> max 0f
+                    let amount' = next i (amount-minCharge)
+                    let charge = (min amount' maxCharge) |> max minCharge
+                    batLevel <- batLevel + charge
+                    batLevels[i] <- batLevel
+                    batSink[i] <- charge
+                    amount' - charge
+                    
 
     let fossil capacity (current: float32[]) (projected: float32[]) =
         let getMaxAvailable =
@@ -151,11 +180,21 @@ let simulate (yStats:YearStats) (cfg:SimConfig) =
     let wind = yStats[Wind]
     let solar = yStats[Solar]
     let nuclear = yStats[Nuclear]
+    let hydro = yStats[Hydro]
 
     let nSamples = wind.data.Length
 
     let kWind = cfg.installedWindMW / wind.capacity.Value
     let kSolar = cfg.installedSolarMW / solar.capacity.Value
+    let hydro' =
+        match cfg.hydropowerExtraSavaGWh with
+        | true, extraProduction ->
+            let k = (hydro.total + extraProduction*1000f) / hydro.total
+            let hydro' = { hydro with capacity = Some (hydro.capacity.Value*k); data=hydro.data |> Array.map (( * ) k); total = hydro.total * k }
+            printfn "kHydro = %f (current capacity=%.1f->%.1f) d[100]=%f->%f" k hydro.capacity.Value hydro'.capacity.Value nuclear.data[100] hydro'.data[100]
+            hydro'
+        | false, _ -> hydro
+        
     let nuclear' = 
         match cfg.extraNuclearMW, cfg.stopCurrentNuclear with
         | (true, newCapacity), stopCurrentNuclear ->
@@ -173,19 +212,12 @@ let simulate (yStats:YearStats) (cfg:SimConfig) =
     let wind' = { wind with capacity=Some (wind.capacity.Value * kWind); data = wind.data |> Array.map (( * ) kWind); total = wind.total * kWind }
     let solar' = { solar with capacity=Some (solar.capacity.Value * kSolar); data = solar.data |> Array.map (( * ) kSolar); total = solar.total * kSolar }
 
-    let cars =
-        if cfg.electricCarsPercent < 0.1f then
-            Array.zeroCreate nSamples
-        else
-            let kwhDaily = (15_000./365./100.*22.) * 1_000_000. * float cfg.electricCarsPercent / 100.
-            let mwhHourly = kwhDaily / 1000. / 24. |> float32
-            printfn "cars: %f daily, %f hourly MW" (kwhDaily/1000.) mwhHourly
-            Array.init nSamples (fun i -> mwhHourly)
-
     let coal' = Array.zeroCreate nSamples
     let gas' = Array.zeroCreate nSamples
     let batLevels = Array.zeroCreate nSamples
     let batAmount = Array.zeroCreate nSamples
+    let carBatLevels = Array.zeroCreate nSamples
+    let carBatSink = Array.zeroCreate nSamples
     let excess = Array.zeroCreate nSamples
     let import' = Array.zeroCreate nSamples
     let pumpedLevels = Array.zeroCreate nSamples
@@ -195,18 +227,19 @@ let simulate (yStats:YearStats) (cfg:SimConfig) =
         let balanceCoal = Balance.fossil coal.capacity coal.data coal'
         let balanceGas = Balance.fossil None gas.data gas'
         let balanceBat = Balance.battery cfg.battery batLevels batAmount
+        let balanceCars = Balance.carBattery (cfg.electricCarsPercent * 10000f) carBatLevels carBatSink
         let balancePumped =
             match cfg.pumpedStorage with
             | true, pumpedCfg -> Balance.battery pumpedCfg pumpedLevels pumpedAmount
             | false, _ -> Balance.dummy
         let balanceExcess = Balance.excess excess
         let balanceImport = Balance.import import.data export.data import'
-        balanceExcess (balanceImport (balanceCoal (balanceGas (balancePumped (balanceBat Balance.nothing)))))
+        balanceExcess (balanceImport (balanceCars (balanceCoal (balanceGas (balancePumped (balanceBat Balance.nothing))))))
 
 
     for i in 0..nSamples-1 do
-        let current = wind.data[i] + solar.data[i] + nuclear.data[i]
-        let simulated = wind'.data[i] + solar'.data[i] + nuclear'.data[i] - cars[i]
+        let current = wind.data[i] + solar.data[i] + nuclear.data[i] + hydro.data[i]
+        let simulated = wind'.data[i] + solar'.data[i] + nuclear'.data[i] + hydro'.data[i] //- carBatSink[i]
         let unbalanced = balance i (simulated-current)
         if unbalanced > 0.001f then
             failwithf "mismatching balance of %f for datapoint %d" unbalanced i
@@ -218,6 +251,7 @@ let simulate (yStats:YearStats) (cfg:SimConfig) =
             |> Map.add Wind wind'
             |> Map.add Solar solar'
             |> Map.add Nuclear nuclear'
+            |> Map.add Hydro hydro'
             |> Map.add Coal { coal with data=coal'; total=Array.sum coal' }
             |> Map.add Gas { gas with data=gas'; total=Array.sum gas' }
             |> Map.add BatteryLevel { kind=BatteryLevel; capacity=Some cfg.battery.capacity; data=batLevels; total=Array.sum batLevels }

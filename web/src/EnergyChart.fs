@@ -157,7 +157,7 @@ let renderOptions (cfg: Energy.Sim.SimConfig) (ys:Shared.Types.YearStats) (ys':S
                         let d = startDate + (double i) * 86400_000.0;
                         d,mn,mx)
                 yield box {|
-                    name="% baterije+ČHE min/max na dan"
+                    name="% baterije+ČHE min/max dnevno"
                     ``type``="arearange"
                     data=data
                     yAxis=1

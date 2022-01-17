@@ -51,4 +51,21 @@ Other holidays:
 
 ## docs
 
+Potencial sonca
 https://www.podnebnapot2050.si/wp-content/uploads/2020/06/Deliverable_C_1_1-Part-5B-Potencial-son%C4%8Dnih-elektrarn-na-strehah-objektov-v-Sloveniji.pdf
+
+Potencial vetra
+http://www.energetika-portal.si/fileadmin/dokumenti/publikacije/an_ove/posodobitev_2017/strokovne_podlage_ve-comb.pdf
+
+
+#### NEK ekonomika (cena proizvedene energije 33,5€ / MWh)
+Ob varnem in stabilnem delovanju elektrarne
+smo družbenikoma dobavili 6.040.821 megavatnih ur električne
+energije. Tako smo drugič v zgodovini obratovanja presegli 6.000.000
+megavatnih ur in s tem letni načrt dobav za 85.821 megavatnih
+ur električne energije. Ob tem smo ustvarili 201.097.970 evrov
+prihodkov in 200.963.253 evrov odhodkov, za razliko 134.717 evrov pa
+izkazujemo obveznost za davek od dobička
+
+Cost of nuclear
+https://www.sciencedirect.com/science/article/pii/S0301421516300106
