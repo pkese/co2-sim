@@ -57,3 +57,8 @@ type YearStats = {
     }
     static member getTraceList ys = [ for kv in ys.traces -> kv.Value ]
 
+    static member getTonsCO2 (ys:YearStats) =
+        // https://ourworldindata.org/grapher/carbon-dioxide-emissions-factor
+        let coalCO2 = ys[Coal].totalMWh * 1.033f // tons CO2 per MWh
+        let gasCO2 = ys[Gas].totalMWh * 0.442f
+        coalCO2+gasCO2

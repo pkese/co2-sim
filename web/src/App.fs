@@ -27,7 +27,7 @@ let MyApp() =
     let content =
         match activeTab with
         | Tab.Energy ->
-            Lit.ofImport(EnergyApp.register, fun _ ->
+            Lit.ofImport(Energy.App.register, fun _ ->
                 html $"""<energy-app local-storage="energy-app"></energy-app>""")
 
     (*html $"""

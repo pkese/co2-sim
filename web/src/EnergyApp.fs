@@ -1,4 +1,4 @@
-module EnergyApp
+module Energy.App
 
 open Lit
 open Lit.TodoMVC.Util
@@ -58,12 +58,6 @@ let renderTraceHeader() = html $"""
     </tr>
 """
 
-let getTonsCO2 (ys:YearStats) =
-    // https://ourworldindata.org/grapher/carbon-dioxide-emissions-factor
-    let coalCO2 = ys[Coal].totalMWh * 0.3636f // tons CO2 per MWh
-    let gasCO2 = ys[Gas].totalMWh * 0.20196f
-    coalCO2+gasCO2
-
 let renderTraceRow(ys:YearStats) = 
 
     let renderCapacityCell kind =
@@ -83,7 +77,7 @@ let renderTraceRow(ys:YearStats) =
                 |> Lit.mapUnique (fun col -> $"{col}") (fun col -> html $"<td>{renderCapacityCell col}</td>")}
             { dataColumns
                 |> Lit.mapUnique (fun col -> $"{col}") (fun col -> html $"<td>{renderPowerCell col}</td>")}
-            <td>{Lit.ofText <| sprintf "%.1f" (getTonsCO2 ys)}</td>
+            <td>{Lit.ofText <| sprintf "%.1f" (YearStats.getTonsCO2 ys)}</td>
         </tr>
     """
 
@@ -116,84 +110,10 @@ let renderDeltaRow (ys:YearStats) (ys':YearStats) =
                 |> Lit.mapUnique (fun col -> $"{col}") (fun col -> html $"<td>{renderCapacityCell col}</td>")}
             { dataColumns
                 |> Lit.mapUnique (fun col -> $"{col}") (fun col -> html $"<td>{renderPowerCell col}</td>")}
-            <td>{Lit.ofText <| sprintf "%.1f%%" (100f * getTonsCO2 ys' / getTonsCO2 ys)}</td>
+            <td>{Lit.ofText <| sprintf "%.1f%%" (100f * YearStats.getTonsCO2 ys' / YearStats.getTonsCO2 ys)}</td>
         </tr>
     """
 
-type CostItem = { kind: TraceKind; deltaCapacity:float32; price:float32; cost:float32; pricingUnit:string }
-
-let renderCostList (ys:YearStats) (ys':YearStats) =
-    let getDelta pre post =
-        match pre, post with
-        | Some pre, Some post -> post - pre
-        | None, Some post -> post
-        | _, _ -> 0f
-
-    let deltaCapacity kind =
-        let pricingUnit, extractCapacity =
-            match kind with
-            | Hydro -> "GWh", fun (t:Trace) -> Some (t.totalMWh / 1000f)
-            | Battery -> "KW", fun (t:Trace) -> t.capacityMW
-            | _ -> "KW", fun (t:Trace) -> t.capacityMW
-        let pre = ys.traces |> Map.tryFind kind |> Option.bind extractCapacity
-        let post = ys'.traces |> Map.tryFind kind |> Option.bind extractCapacity
-        pricingUnit, (getDelta pre post)
-        
-    let priceOf = function
-        //| Solar -> 790f // https://www.utilitydive.com/news/us-utility-scale-solar-storage-prices-drop-12-in-past-year-but-supply-c/610825/
-        | Solar -> 1000f // ~ slovenske cene: 1000€ / kW na strehi
-        | Wind -> 1500f // https://www.windustry.org/how_much_do_wind_turbines_cost
-        | Battery -> 340f // https://en.wikipedia.org/wiki/Hornsdale_Power_Reserve#Expansion
-        | Hydro -> 1400f // https://www.delo.si/novice/slovenija/politicno-kupckanje-na-srednji-savi/ (Suhadol,Trbovlje,Renke vsaka 100MW, 100GWh, skupaj 3 elektrarne 400 mio €)
-        | Nuclear -> 6000f
-        | PumpedLevel -> 50f
-        | other -> failwithf $"missing cost of {other}"
-        
-
-    let header = html $"""<tr><th>Vir</th><th>Gradnja [MW]</th><th>Cena [€/kW]</th><th>Cena [M€]</th></tr>"""
-    let items =
-        [ Wind; Solar; Battery; Hydro; PumpedLevel; Nuclear ]
-        |> List.map (fun kind ->
-            let pricingUnit, deltaCapacity = deltaCapacity kind
-            let price = priceOf kind
-            let cost = deltaCapacity * price * 0.001f
-            { kind=kind; deltaCapacity=deltaCapacity; price=price; cost=cost; pricingUnit=pricingUnit }
-        )
-    let totalCost = items |> List.sumBy (fun item -> item.cost)
-
-    let renderRow item =
-        html $"""
-            <tr>
-                <td>{colName item.kind}</td>
-                <td>{sprintf "%.1f" item.deltaCapacity}</td>
-                <td>{sprintf "%.1f" item.price}</td>
-                <td>{sprintf "%.1f" item.cost}</td>
-            </tr>
-        """
-    html $"""
-        <h2>Cena</h2>
-        <p>Stroški investicije
-            <br/>če se fotovoltaika gradi na strehah individualnih in gospodarskih objektov (brez uničevanja narave)
-            <br/>baterije pa 'utility scale' (cene kot v Avstraliji).
-            <br/>TODO: cene nukleark in ČHE
-        </p>
-        <table class="energy-table">
-            <thead>{header}</thead>
-            <tbody>
-                {
-                    items
-                    |> Seq.indexed
-                    |> Lit.mapUnique (fst >> string) (snd >> renderRow)
-                }
-                <tr>
-                    <td>Skupaj</td>
-                    <td></td>
-                    <td></td>
-                    <td>{sprintf "%.1f" totalCost}</td>
-                </tr>
-            <tbody>
-        </table>
-    """
     
 [<LitElement("energy-app")>]
 let EnergySimulationApp() =
@@ -242,17 +162,17 @@ let EnergySimulationApp() =
                 |> Shared.Trace.annotateStats
             setTraces [
                 yearStats
-                Energy.Sim.simulate yearStats simConfig
+                Sim.simulate yearStats simConfig
             ]
         )
     )
-    let onSimConfigChanged (sc: Energy.Sim.SimConfig) =
+    let onSimConfigChanged (sc: Sim.SimConfig) =
         if sc <> simConfig then
             setSimConfig(sc)
             match yearStats with
             | ys::_ ->
                 printfn "running simulation..."
-                setTraces [ ys; Energy.Sim.simulate ys sc ]
+                setTraces [ ys; Sim.simulate ys sc ]
             | [] -> ()
                 
 
@@ -315,14 +235,14 @@ let EnergySimulationApp() =
             <div>
                 {
                     match yearStats with
-                    | [ys;ys'] -> renderCostList ys ys'
+                    | [ys;ys'] -> CostTable.renderCostList simConfig ys ys'
                     | _ -> Lit.nothing
                 }
             </div>
             <div class="row">
                 { match yearStats with
                     | [] -> Lit.nothing
-                    | ys::ys'::_ -> Energy.Chart.EnergyChart simConfig ys ys'
+                    | ys::ys'::_ -> Chart.EnergyChart simConfig ys ys'
                     | ys::[] -> Lit.nothing
                 }
             </div>

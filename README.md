@@ -88,3 +88,23 @@ Kozjak:
 - Volumen: 2,9 mio m3
 - Padec: 700 m // http://mvd20.com/LETO2006/R7.pdf
 - Kapaciteta: Avče / 521 * 700 / 2.71 * 2.9 = 4,85 (optimistično)
+
+
+#### TEŠ
+
+Ocena emisije za 2020 (emisijski kuponi):  
+https://www.rtvslo.si/okolje/kaj-so-emisijski-kuponi-in-zakaj-se-drazijo/608842  
+Letno poročilo:  
+https://www.te-sostanj.si/wp-content/uploads/2021/09/03_TES_anuall_report_2020_ang_SPLET.pdf  
+
+Po letnem poročilu so v letu 2020 proizvedli 3640 GWh elektrike  
+in porabili 3.760.438 emisijskih kuponov (i.e. ton CO2)  
+torej so izpusti 1.033 T CO2 / MWh  
+Prihodki so bili 240 M€, cena kuponov je bila 68+ M€
+
+Cena kuponov 2020 je bila:  
+ 68 M€ / 3760438 kuponov = 18 € / kupon (verjetno jih nekaj dobijo zastonj)
+
+#### Deomgraphy
+
+859.782 gospodinjstev  https://www.stat.si/StatWeb/News/Index/9973
