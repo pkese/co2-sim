@@ -31,9 +31,9 @@ type Trace with
             | _ -> t.capacity
         {
             kind=kind
-            capacity=capacity
+            capacityMW=capacity
             data=t.data
-            total=t.total
+            totalMWh=t.total
         }
 
 

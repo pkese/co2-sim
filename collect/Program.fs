@@ -110,9 +110,9 @@ let loadTracesCsv year =
         let data = data.ToArray() |> interpolateNaNs $"{kind}"
         {
             kind = kind
-            capacity = getCapacityForYear year cap
+            capacityMW = getCapacityForYear year cap
             data = data
-            total = data |> Array.sum
+            totalMWh = data |> Array.sum
         }
     [
         makeTrace Coal capacity.FossilBrownCoal fCoal

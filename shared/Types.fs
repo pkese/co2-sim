@@ -31,9 +31,9 @@ module TraceKind =
 
 type Trace = {
     kind: TraceKind
-    capacity: float32 option
+    capacityMW: float32 option
     data: float32[]
-    total: float32
+    totalMWh: float32
 } with
     member trace.Clone() = { trace with data = Array.copy trace.data }
 

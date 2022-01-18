@@ -46,7 +46,7 @@ let renderTraceHeader() = html $"""
         <th></th>
         <th colspan={installedColumns.Length}>Inštalirana moč [MW,MWh]</th>
         <th colspan={dataColumns.Length}>Proizvodnja [GWh]</th>
-        <th>Izpusti [MT]</th>
+        <th>Izpusti [T]</th>
     </tr>
     <tr>
         <th>Leto</th>
@@ -59,20 +59,21 @@ let renderTraceHeader() = html $"""
 """
 
 let getTonsCO2 (ys:YearStats) =
-    let coal = ys[Coal].total * 448.32f
-    let gas = ys[Gas].total * 988.83f
-    (coal+gas)/1000000f
+    // https://ourworldindata.org/grapher/carbon-dioxide-emissions-factor
+    let coalCO2 = ys[Coal].totalMWh * 0.3636f // tons CO2 per MWh
+    let gasCO2 = ys[Gas].totalMWh * 0.20196f
+    coalCO2+gasCO2
 
 let renderTraceRow(ys:YearStats) = 
 
     let renderCapacityCell kind =
         match ys.traces |> Map.tryFind kind with
-        | Some trace -> Lit.ofText <| sprintf "%.0f" (trace.capacity |> Option.defaultValue 0f)
+        | Some trace -> Lit.ofText <| sprintf "%.0f" (trace.capacityMW |> Option.defaultValue 0f)
         | None -> Lit.nothing
         
     let renderPowerCell kind =
         match ys.traces |> Map.tryFind kind with
-        | Some trace -> Lit.ofText <| sprintf "%.1f" (trace.total/1000f)
+        | Some trace -> Lit.ofText <| sprintf "%.1f" (trace.totalMWh/1000f)
         | None -> Lit.nothing
 
     html $"""
@@ -99,13 +100,13 @@ let renderDeltaRow (ys:YearStats) (ys':YearStats) =
         | _, _ -> Lit.nothing
 
     let renderCapacityCell kind =
-        let pre = ys.traces |> Map.tryFind kind |> Option.bind (fun t -> t.capacity)
-        let post = ys'.traces |> Map.tryFind kind |> Option.bind (fun t -> t.capacity)
+        let pre = ys.traces |> Map.tryFind kind |> Option.bind (fun t -> t.capacityMW)
+        let post = ys'.traces |> Map.tryFind kind |> Option.bind (fun t -> t.capacityMW)
         renderDelta pre post
 
     let renderPowerCell kind =
-        let pre = ys.traces |> Map.tryFind kind |> Option.map (fun t -> t.total)
-        let post = ys'.traces |> Map.tryFind kind |> Option.map (fun t -> t.total)
+        let pre = ys.traces |> Map.tryFind kind |> Option.map (fun t -> t.totalMWh)
+        let post = ys'.traces |> Map.tryFind kind |> Option.map (fun t -> t.totalMWh)
         renderDelta pre post
 
     html $"""
@@ -119,7 +120,7 @@ let renderDeltaRow (ys:YearStats) (ys':YearStats) =
         </tr>
     """
 
-type CostItem = { kind: TraceKind; deltaCapacity:float32; price:float32; cost:float32 }
+type CostItem = { kind: TraceKind; deltaCapacity:float32; price:float32; cost:float32; pricingUnit:string }
 
 let renderCostList (ys:YearStats) (ys':YearStats) =
     let getDelta pre post =
@@ -129,26 +130,34 @@ let renderCostList (ys:YearStats) (ys':YearStats) =
         | _, _ -> 0f
 
     let deltaCapacity kind =
-        let pre = ys.traces |> Map.tryFind kind |> Option.bind (fun t -> t.capacity)
-        let post = ys'.traces |> Map.tryFind kind |> Option.bind (fun t -> t.capacity)
-        getDelta pre post
+        let pricingUnit, extractCapacity =
+            match kind with
+            | Hydro -> "GWh", fun (t:Trace) -> Some (t.totalMWh / 1000f)
+            | Battery -> "KW", fun (t:Trace) -> t.capacityMW
+            | _ -> "KW", fun (t:Trace) -> t.capacityMW
+        let pre = ys.traces |> Map.tryFind kind |> Option.bind extractCapacity
+        let post = ys'.traces |> Map.tryFind kind |> Option.bind extractCapacity
+        pricingUnit, (getDelta pre post)
         
     let priceOf = function
         //| Solar -> 790f // https://www.utilitydive.com/news/us-utility-scale-solar-storage-prices-drop-12-in-past-year-but-supply-c/610825/
-        | Solar -> 1000f // https://www.utilitydive.com/news/us-utility-scale-solar-storage-prices-drop-12-in-past-year-but-supply-c/610825/
+        | Solar -> 1000f // ~ slovenske cene: 1000€ / kW na strehi
         | Wind -> 1500f // https://www.windustry.org/how_much_do_wind_turbines_cost
         | Battery -> 340f // https://en.wikipedia.org/wiki/Hornsdale_Power_Reserve#Expansion
+        | Hydro -> 1400f // https://www.delo.si/novice/slovenija/politicno-kupckanje-na-srednji-savi/ (Suhadol,Trbovlje,Renke vsaka 100MW, 100GWh, skupaj 3 elektrarne 400 mio €)
+        | Nuclear -> 6000f
+        | PumpedLevel -> 50f
         | other -> failwithf $"missing cost of {other}"
         
 
     let header = html $"""<tr><th>Vir</th><th>Gradnja [MW]</th><th>Cena [€/kW]</th><th>Cena [M€]</th></tr>"""
     let items =
-        [ Wind; Solar; Battery ]
+        [ Wind; Solar; Battery; Hydro; PumpedLevel; Nuclear ]
         |> List.map (fun kind ->
-            let deltaCapacity = deltaCapacity kind
+            let pricingUnit, deltaCapacity = deltaCapacity kind
             let price = priceOf kind
             let cost = deltaCapacity * price * 0.001f
-            { kind=kind; deltaCapacity=deltaCapacity; price=price; cost=cost }
+            { kind=kind; deltaCapacity=deltaCapacity; price=price; cost=cost; pricingUnit=pricingUnit }
         )
     let totalCost = items |> List.sumBy (fun item -> item.cost)
 

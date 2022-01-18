@@ -14,6 +14,35 @@ let private hmr = HMR.createToken()
 let register() = ()
 let css = id
 
+module Test =
+
+    let t () =
+
+
+        let add x y = x + y
+
+        let increment = add 1
+
+        let mul x y = x * y
+
+        let double = mul 2
+
+        let incrementAndDouble x = double (increment x)
+        
+        let incrementAndDouble' x = x |> increment |> double
+
+        let incrementAndDouble'' = increment >> double
+
+        let incrementAndDouble''' = (add 1) >> (mul 2)
+
+        4 |> incrementAndDouble // = 10
+
+
+
+
+
+
+
 [<HookComponent>]
 let EnergyForm( setSimConfig: Energy.Sim.SimConfig -> unit, initial: Energy.Sim.SimConfig ) =
     Hook.useHmr(hmr)

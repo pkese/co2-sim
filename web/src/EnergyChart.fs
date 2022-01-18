@@ -46,17 +46,17 @@ let renderOptions (cfg: Energy.Sim.SimConfig) (ys:Shared.Types.YearStats) (ys':S
         let bat = 
             match ys'.traces |> Map.tryFind BatteryLevel with
             | None -> None
-            | Some b when b.capacity = None -> None
-            | Some b when b.capacity.Value = 0f -> None
+            | Some b when b.capacityMW = None -> None
+            | Some b when b.capacityMW.Value = 0f -> None
             | Some bat ->
-                Some (bat.data, bat.capacity)
+                Some (bat.data, bat.capacityMW)
         let pumped =
             match ys'.traces |> Map.tryFind PumpedLevel with
             | None -> None
-            | Some b when b.capacity = None -> None
-            | Some b when b.capacity.Value = 0f -> None
+            | Some b when b.capacityMW = None -> None
+            | Some b when b.capacityMW.Value = 0f -> None
             | Some bat ->
-                Some (bat.data, bat.capacity)
+                Some (bat.data, bat.capacityMW)
         let sum =
             match bat, pumped with
             | Some x, None -> Some x

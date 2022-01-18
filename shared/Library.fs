@@ -36,10 +36,10 @@ module Trace =
             { 
                 kind = TotalProd
                 //capacity = getCapacityForYear year capacity.TotalGrandCapacity
-                capacity =
-                    sources |> List.sumBy (fun t -> t.capacity |> Option.defaultValue 0f) |> Some
+                capacityMW =
+                    sources |> List.sumBy (fun t -> t.capacityMW |> Option.defaultValue 0f) |> Some
                 data = data
-                total = data |> Array.sum
+                totalMWh = data |> Array.sum
             }
         let staticSources, otherSources =
             sources |> List.partition (fun trace -> trace.kind |> TraceKind.isStatic)
@@ -47,9 +47,9 @@ module Trace =
             let data = sumMany staticSources
             { 
                 kind = StaticProd
-                capacity = None
+                capacityMW = None
                 data = data
-                total = data |> Array.sum
+                totalMWh = data |> Array.sum
             }
         let importExport = 
             let load = sinks |> List.find (fun t -> t.kind = Load)
@@ -62,8 +62,8 @@ module Trace =
                 if missing > 0f then import[i] <- missing
                 else export[i] <- -missing
             [
-                { kind=Import; capacity=None; data=import; total=Array.sum import }
-                { kind=Export; capacity=None; data=export; total=Array.sum export }
+                { kind=Import; capacityMW=None; data=import; totalMWh=Array.sum import }
+                { kind=Export; capacityMW=None; data=export; totalMWh=Array.sum export }
             ]
 
 

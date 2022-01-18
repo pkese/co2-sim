@@ -36,7 +36,7 @@ type SimConfig = {
         installedWindMW = 3f
         battery = { capacity=0f; power=PercentCapacity 25f; efficiencyPercent=90f }
         extraNuclearMW = false, 1100f
-        pumpedStorage = false, { capacity=8000f; power=AbsoluteMW 400f; efficiencyPercent=70f }
+        pumpedStorage = false, { capacity=4600f; power=AbsoluteMW 400f; efficiencyPercent=70f }
         stopCurrentNuclear = false
         electricCarsPercent = 0f
         hydropowerExtraSavaGWh = false, (1044f (* savske *) + 131f (* mokrice *))
@@ -47,7 +47,7 @@ type SimConfig = {
         installedWindMW = 100f
         battery = { capacity=0f; power=PercentCapacity 25f; efficiencyPercent=90f }
         extraNuclearMW = false, 1100f
-        pumpedStorage = false, { capacity=8000f; power=AbsoluteMW 400f; efficiencyPercent=70f }
+        pumpedStorage = false, { capacity=4600f; power=AbsoluteMW 400f; efficiencyPercent=70f }
         stopCurrentNuclear = false
         electricCarsPercent = 0f
         hydropowerExtraSavaGWh = false, (1044f (* savske *) + 131f (* mokrice *))
@@ -58,7 +58,7 @@ type SimConfig = {
         installedWindMW = 400f
         battery = { capacity=6000f; power=PercentCapacity 25f; efficiencyPercent=90f }
         extraNuclearMW = false, 1100f
-        pumpedStorage = false, { capacity=8000f; power=AbsoluteMW 400f; efficiencyPercent=70f }
+        pumpedStorage = false, { capacity=4600f; power=AbsoluteMW 400f; efficiencyPercent=70f }
         stopCurrentNuclear = false
         electricCarsPercent = 0f
         hydropowerExtraSavaGWh = false, (1044f (* savske *) + 131f (* mokrice *))
@@ -184,33 +184,33 @@ let simulate (yStats:YearStats) (cfg:SimConfig) =
 
     let nSamples = wind.data.Length
 
-    let kWind = cfg.installedWindMW / wind.capacity.Value
-    let kSolar = cfg.installedSolarMW / solar.capacity.Value
+    let kWind = cfg.installedWindMW / wind.capacityMW.Value
+    let kSolar = cfg.installedSolarMW / solar.capacityMW.Value
     let hydro' =
         match cfg.hydropowerExtraSavaGWh with
         | true, extraProduction ->
-            let k = (hydro.total + extraProduction*1000f) / hydro.total
-            let hydro' = { hydro with capacity = Some (hydro.capacity.Value*k); data=hydro.data |> Array.map (( * ) k); total = hydro.total * k }
-            printfn "kHydro = %f (current capacity=%.1f->%.1f) d[100]=%f->%f" k hydro.capacity.Value hydro'.capacity.Value nuclear.data[100] hydro'.data[100]
+            let k = (hydro.totalMWh + extraProduction*1000f) / hydro.totalMWh
+            let hydro' = { hydro with capacityMW = Some (hydro.capacityMW.Value*k); data=hydro.data |> Array.map ((*) k); totalMWh = hydro.totalMWh * k }
+            printfn "kHydro = %f (current capacity=%.1f->%.1f) d[100]=%f->%f" k hydro.capacityMW.Value hydro'.capacityMW.Value nuclear.data[100] hydro'.data[100]
             hydro'
         | false, _ -> hydro
         
     let nuclear' = 
         match cfg.extraNuclearMW, cfg.stopCurrentNuclear with
         | (true, newCapacity), stopCurrentNuclear ->
-            let capacity = nuclear.capacity.Value
+            let capacity = nuclear.capacityMW.Value
             let k =
                 if stopCurrentNuclear
                 then newCapacity / capacity
                 else (capacity + newCapacity) / capacity
-            let nuclear' = { nuclear with capacity = Some (capacity*k); data=nuclear.data |> Array.map (( * ) k); total = nuclear.total * k }
+            let nuclear' = { nuclear with capacityMW = Some (capacity*k); data=nuclear.data |> Array.map ((*) k); totalMWh = nuclear.totalMWh * k }
             printfn "kNuclear = %f (current capacity=%f) d[100]=%f->%f" k capacity nuclear.data[100] nuclear'.data[100]
             nuclear'
-        | (false,_), true -> { nuclear with capacity = Some 0f; data=Array.zeroCreate nSamples; total=0f }
+        | (false,_), true -> { nuclear with capacityMW = Some 0f; data=Array.zeroCreate nSamples; totalMWh=0f }
         | _ -> nuclear
 
-    let wind' = { wind with capacity=Some (wind.capacity.Value * kWind); data = wind.data |> Array.map (( * ) kWind); total = wind.total * kWind }
-    let solar' = { solar with capacity=Some (solar.capacity.Value * kSolar); data = solar.data |> Array.map (( * ) kSolar); total = solar.total * kSolar }
+    let wind' = { wind with capacityMW=(wind.capacityMW |> Option.map ((*) kWind)); data = wind.data |> Array.map ((*) kWind); totalMWh = wind.totalMWh * kWind }
+    let solar' = { solar with capacityMW=(solar.capacityMW |> Option.map ((*) kSolar)); data = solar.data |> Array.map ((*) kSolar); totalMWh = solar.totalMWh * kSolar }
 
     let coal' = Array.zeroCreate nSamples
     let gas' = Array.zeroCreate nSamples
@@ -224,7 +224,7 @@ let simulate (yStats:YearStats) (cfg:SimConfig) =
     let pumpedAmount = Array.zeroCreate nSamples
 
     let balance =
-        let balanceCoal = Balance.fossil coal.capacity coal.data coal'
+        let balanceCoal = Balance.fossil coal.capacityMW coal.data coal'
         let balanceGas = Balance.fossil None gas.data gas'
         let balanceBat = Balance.battery cfg.battery batLevels batAmount
         let balanceCars = Balance.carBattery (cfg.electricCarsPercent * 10000f) carBatLevels carBatSink
@@ -252,16 +252,16 @@ let simulate (yStats:YearStats) (cfg:SimConfig) =
             |> Map.add Solar solar'
             |> Map.add Nuclear nuclear'
             |> Map.add Hydro hydro'
-            |> Map.add Coal { coal with data=coal'; total=Array.sum coal' }
-            |> Map.add Gas { gas with data=gas'; total=Array.sum gas' }
-            |> Map.add BatteryLevel { kind=BatteryLevel; capacity=Some cfg.battery.capacity; data=batLevels; total=Array.sum batLevels }
+            |> Map.add Coal { coal with data=coal'; totalMWh=Array.sum coal' }
+            |> Map.add Gas { gas with data=gas'; totalMWh=Array.sum gas' }
+            |> Map.add BatteryLevel { kind=BatteryLevel; capacityMW=Some cfg.battery.capacity; data=batLevels; totalMWh=Array.sum batLevels }
             |> fun m ->
                 if fst cfg.pumpedStorage then
                     m
-                    |> Map.add PumpedLevel { kind=PumpedLevel; capacity=Some (snd cfg.pumpedStorage).capacity; data=pumpedLevels; total=Array.sum pumpedLevels }
+                    |> Map.add PumpedLevel { kind=PumpedLevel; capacityMW=Some (snd cfg.pumpedStorage).capacity; data=pumpedLevels; totalMWh=Array.sum pumpedLevels }
                 else m
-            |> Map.add Battery { kind=Battery; capacity=Some cfg.battery.capacity; data=batAmount; total=Array.sum batAmount }
-            |> Map.add Excess { kind=Excess; capacity=None; data=excess; total=Array.sum excess }
-            |> Map.add Import { import with data=import'; total=Array.sum import' }
+            |> Map.add Battery { kind=Battery; capacityMW=Some cfg.battery.capacity; data=batAmount; totalMWh=Array.sum batAmount }
+            |> Map.add Excess { kind=Excess; capacityMW=None; data=excess; totalMWh=Array.sum excess }
+            |> Map.add Import { import with data=import'; totalMWh=Array.sum import' }
     }
 
