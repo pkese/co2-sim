@@ -35,10 +35,3 @@ type Trace with
             data=t.data
             totalMWh=t.total
         }
-
-
-let jsonData = promise {
-    let data = fetchJson<JsonTrace[]>("contacts.json")
-    printfn "%A" data
-    //|> Promise.then (fun data -> printfn "%A" data)
-}

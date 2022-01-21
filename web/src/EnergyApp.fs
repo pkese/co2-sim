@@ -10,7 +10,7 @@ let private hmr = HMR.createToken()
 let register() =
     Energy.Form.register()
     Energy.Chart.register()
-    ()
+    Energy.CostTable.register()
 
 let colName = function
     | Oil -> "Nafta"
@@ -235,7 +235,7 @@ let EnergySimulationApp() =
             <div>
                 {
                     match yearStats with
-                    | [ys;ys'] -> CostTable.renderCostList simConfig ys ys'
+                    | [ys;ys'] -> CostTable.CostTable simConfig ys ys'
                     | _ -> Lit.nothing
                 }
             </div>

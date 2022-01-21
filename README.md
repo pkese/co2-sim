@@ -105,6 +105,11 @@ Prihodki so bili 240 M€, cena kuponov je bila 68+ M€
 Cena kuponov 2020 je bila:  
  68 M€ / 3760438 kuponov = 18 € / kupon (verjetno jih nekaj dobijo zastonj)
 
+#### Emissions
+
+Life-cycle CO2 emissions  
+https://unece.org/sed/documents/2021/10/reports/life-cycle-assessment-electricity-generation-options
+
 #### Deomgraphy
 
 859.782 gospodinjstev  https://www.stat.si/StatWeb/News/Index/9973

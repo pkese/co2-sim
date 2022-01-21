@@ -14,34 +14,6 @@ let private hmr = HMR.createToken()
 let register() = ()
 let css = id
 
-module Test =
-
-    let t () =
-
-
-        let add x y = x + y
-
-        let increment = add 1
-
-        let mul x y = x * y
-
-        let double = mul 2
-
-        let incrementAndDouble x = double (increment x)
-        
-        let incrementAndDouble' x = x |> increment |> double
-
-        let incrementAndDouble'' = increment >> double
-
-        let incrementAndDouble''' = (add 1) >> (mul 2)
-
-        4 |> incrementAndDouble // = 10
-
-
-
-
-
-
 
 [<HookComponent>]
 let EnergyForm( setSimConfig: Energy.Sim.SimConfig -> unit, initial: Energy.Sim.SimConfig ) =
@@ -146,7 +118,7 @@ let EnergyForm( setSimConfig: Energy.Sim.SimConfig -> unit, initial: Energy.Sim.
 
             <i class="ico fas fa-wind"></i>
             <input type="number" id="wind" name="wind" value="{wind}" size="6" min=0 step=50 @change={EvVal setWind} />
-            <label for="wind">MW vetrnic</label><br/>
+            <label for="wind">MW vetrnic {if float wind>480. then "(ocena maksimalne kapacitete vetrnic je okrog 480 MW)" else ""}</label><br/>
 
             <i class="ico fas fa-car-battery"></i>
             <input type="number" id="battery" name="battery" value="{battery}" size="6" step=50 min=0 @change={EvVal setBattery} />

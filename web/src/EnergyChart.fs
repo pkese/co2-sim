@@ -89,7 +89,7 @@ let renderOptions (cfg: Energy.Sim.SimConfig) (ys:Shared.Types.YearStats) (ys':S
     let startDate = jsTimestamp($"{ys.year}-01-01 0:0:0");
 
     box {|
-        title=box {|text="Dnevne krivulje"|}
+        title=box {|text="Graf dnevne proizvodnje"|}
         ``type``="arearange"
 
         plotOptions = box {|
